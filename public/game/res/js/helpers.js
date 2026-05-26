@@ -80,15 +80,27 @@ const jsonsFiles = [
 ];
 
 async function loadData() {
-    try {
-        jsonsFiles.map(async (jsonFile) => {
-            const file = await fetch(`./res/data/${jsonFile}.json`);
-            const data = await file.json();
+    // Hem game.html (../public/game/) hem de oyunun kendi index.html'i için path tespiti
+    const base = document.querySelector('script[src*="main.js"]')
+        ? document.querySelector('script[src*="main.js"]').src.replace("main.js", "")
+        : "./res/js/";
+    const dataBase = base.replace("/js/", "/data/");
 
+    try {
+        await Promise.all(jsonsFiles.map(async (jsonFile) => {
+            // Önce normal path dene, olmadığında alternatif path dene
+            let url = `${dataBase}${jsonFile}.json`;
+            let res = await fetch(url);
+            if (!res.ok) {
+                // game.html'den çalışıyorsa public/game/res/data/ path'i dene
+                res = await fetch(`./public/game/res/data/${jsonFile}.json`);
+            }
+            if (!res.ok) throw new Error(`${jsonFile}.json yuklenemedi`);
+            const data = await res.json();
             gameData[jsonFile] = data;
-        });
+        }));
     } catch (err) {
-        console.log(err);
+        console.error("loadData hatasi:", err);
     }
 }
 

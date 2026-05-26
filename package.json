@@ -1,1 +1,1 @@
-{"name":"water-and-fire","version":"1.0.0","scripts":{"start":"npx serve . -p $PORT"},"dependencies":{"serve":"14.2.3"}}
+{"name":"water-and-fire","version":"1.0.0","scripts":{"start":"node server.js"}}

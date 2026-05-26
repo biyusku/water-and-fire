@@ -4,14 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ates ve Su - Oyna</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel&display=swap">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #0d0d0d;
       display: flex;
       flex-direction: column;
-      align-items: center;
       height: 100vh;
       overflow: hidden;
       font-family: 'Segoe UI', sans-serif;
@@ -19,14 +17,14 @@
     }
     .topbar {
       width: 100%;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.9);
       border-bottom: 1px solid rgba(255,255,255,0.08);
       padding: 7px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
-      z-index: 100;
+      height: 44px;
     }
     .topbar-left { display: flex; align-items: center; gap: 10px; }
     .back-btn {
@@ -35,7 +33,6 @@
       color: white; padding: 5px 12px;
       border-radius: 6px; cursor: pointer;
       font-size: 0.8rem; text-decoration: none;
-      transition: background 0.2s;
     }
     .back-btn:hover { background: rgba(255,255,255,0.18); }
     .topbar h1 {
@@ -45,7 +42,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .controls-mini { display: flex; gap: 16px; font-size: 0.75rem; color: #777; }
+    .controls-mini { display: flex; gap: 16px; font-size: 0.75rem; }
     .ctrl-fire { color: #ff5500; font-weight: 600; }
     .ctrl-water { color: #00aaff; font-weight: 600; }
     .topbar-right { display: flex; gap: 8px; }
@@ -54,7 +51,7 @@
       border: 1px solid rgba(255,255,255,0.15);
       color: white; padding: 5px 10px;
       border-radius: 6px; cursor: pointer;
-      font-size: 0.85rem; transition: background 0.2s;
+      font-size: 0.85rem;
     }
     .icon-btn:hover { background: rgba(255,255,255,0.2); }
     .game-wrapper {
@@ -62,24 +59,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 100%;
-    }
-    #canvas {
-      display: block;
-      object-fit: contain;
-      max-width: 100%;
-      max-height: calc(100vh - 44px);
       background: #000;
     }
-    :fullscreen body { height: 100vh; }
-    :fullscreen .topbar { display: none; }
-    :fullscreen #canvas { max-height: 100vh; }
-    :-webkit-full-screen .topbar { display: none; }
-    :-webkit-full-screen #canvas { max-height: 100vh; }
+    #game-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
   </style>
 </head>
 <body>
-  <div class="topbar" id="topbar">
+  <div class="topbar">
     <div class="topbar-left">
       <a href="index.html" class="back-btn">Ana Sayfa</a>
       <h1>Ates ve Su</h1>
@@ -89,80 +80,33 @@
       <span class="ctrl-water">SU: Ok Tuslari</span>
     </div>
     <div class="topbar-right">
-      <button class="icon-btn" id="sound-btn" onclick="toggleSound()">Ses Ac</button>
+      <button class="icon-btn" id="sound-btn" onclick="toggleSound()">Ses Kapat</button>
       <button class="icon-btn" id="fs-btn" onclick="toggleFullscreen()">Tam Ekran</button>
     </div>
   </div>
 
   <div class="game-wrapper">
-    <canvas id="canvas"></canvas>
+    <iframe
+      id="game-frame"
+      src="public/game/index.html"
+      allowfullscreen
+      allow="fullscreen"
+    ></iframe>
   </div>
 
   <script>
-    // Ses sistemi
-    let audioCtx = null;
     let soundEnabled = localStorage.getItem("soundEnabled") !== "false";
     document.getElementById("sound-btn").textContent = soundEnabled ? "Ses Kapat" : "Ses Ac";
-
-    function getAudioCtx() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      return audioCtx;
-    }
-
-    function playSound(type) {
-      if (!soundEnabled) return;
-      try {
-        const ctx = getAudioCtx();
-        const now = ctx.currentTime;
-        if (type === "jump") {
-          const o = ctx.createOscillator(), g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = "sine";
-          o.frequency.setValueAtTime(180, now);
-          o.frequency.exponentialRampToValueAtTime(420, now + 0.12);
-          g.gain.setValueAtTime(0.18, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-          o.start(now); o.stop(now + 0.18);
-        } else if (type === "death") {
-          const o = ctx.createOscillator(), g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = "sawtooth";
-          o.frequency.setValueAtTime(350, now);
-          o.frequency.exponentialRampToValueAtTime(60, now + 0.5);
-          g.gain.setValueAtTime(0.25, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-          o.start(now); o.stop(now + 0.5);
-        } else if (type === "win") {
-          [523, 659, 784, 1047].forEach((freq, i) => {
-            const o = ctx.createOscillator(), g = ctx.createGain();
-            o.connect(g); g.connect(ctx.destination);
-            o.type = "sine";
-            const t = now + i * 0.13;
-            o.frequency.setValueAtTime(freq, t);
-            g.gain.setValueAtTime(0.22, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-            o.start(t); o.stop(t + 0.25);
-          });
-        } else if (type === "diamond") {
-          const o = ctx.createOscillator(), g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = "sine";
-          o.frequency.setValueAtTime(880, now);
-          o.frequency.exponentialRampToValueAtTime(1320, now + 0.08);
-          g.gain.setValueAtTime(0.15, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-          o.start(now); o.stop(now + 0.12);
-        }
-      } catch(e) {}
-    }
-
-    window.playSound = playSound;
 
     function toggleSound() {
       soundEnabled = !soundEnabled;
       localStorage.setItem("soundEnabled", soundEnabled);
       document.getElementById("sound-btn").textContent = soundEnabled ? "Ses Kapat" : "Ses Ac";
-      if (soundEnabled) playSound("diamond");
+      // iframe icindeki oyuna mesaj gonder
+      const iframe = document.getElementById("game-frame");
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "soundToggle", enabled: soundEnabled }, "*");
+      }
     }
 
     function toggleFullscreen() {
@@ -178,8 +122,5 @@
       if (btn) btn.textContent = document.fullscreenElement ? "Cik" : "Tam Ekran";
     });
   </script>
-
-  <!-- Oyun direkt bu sayfada calisir, iframe yok -->
-  <script type="module" src="public/game/res/js/main.js"></script>
 </body>
 </html>
