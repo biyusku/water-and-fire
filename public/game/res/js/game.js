@@ -34,49 +34,7 @@ import { drawTime, formatTime, levelTime } from "./time.js";
 import { Bridge } from "./ingameAssets/bridge.js";
 import { Ball } from "./ingameAssets/ball.js";
 
-// Ses fallback - game.html'de tanimli degilse kendi motoru calistir
-if (typeof window.playSound !== "function") {
-    let _ctx = null;
-    const _AC = window.AudioContext || window.webkitAudioContext;
-    window.playSound = function(type) {
-        try {
-            if (!_AC) return;
-            if (!_ctx) _ctx = new _AC();
-            const t = _ctx.currentTime;
-            if (type === "jump") {
-                const o = _ctx.createOscillator(), g = _ctx.createGain();
-                o.connect(g); g.connect(_ctx.destination);
-                o.type = "sine";
-                o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(420, t + 0.12);
-                g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-                o.start(t); o.stop(t + 0.18);
-            } else if (type === "death") {
-                const o = _ctx.createOscillator(), g = _ctx.createGain();
-                o.connect(g); g.connect(_ctx.destination);
-                o.type = "sawtooth";
-                o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.5);
-                g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-                o.start(t); o.stop(t + 0.5);
-            } else if (type === "win") {
-                [523, 659, 784, 1047].forEach(function(freq, i) {
-                    const o = _ctx.createOscillator(), g = _ctx.createGain();
-                    o.connect(g); g.connect(_ctx.destination);
-                    const s = t + i * 0.13;
-                    o.type = "sine"; o.frequency.setValueAtTime(freq, s);
-                    g.gain.setValueAtTime(0.2, s); g.gain.exponentialRampToValueAtTime(0.001, s + 0.25);
-                    o.start(s); o.stop(s + 0.25);
-                });
-            } else if (type === "diamond") {
-                const o = _ctx.createOscillator(), g = _ctx.createGain();
-                o.connect(g); g.connect(_ctx.destination);
-                o.type = "sine";
-                o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1320, t + 0.08);
-                g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-                o.start(t); o.stop(t + 0.12);
-            }
-        } catch(e) {}
-    };
-}
+
 
 let bgBlocks, died, menuButtonPressed, pauseGame, collisionBlocks, ponds;
 
@@ -491,7 +449,6 @@ function playGame() {
 
                 if (player.died) {
                     died = true;
-                    if(typeof window.playSound==="function")window.playSound("death");
                 }
             });
 
@@ -507,7 +464,6 @@ function playGame() {
             //both doors opened
             if (allDoors[0].opened == true && allDoors[1].opened == true) {
                 setLevelCompleted(true);
-                if(typeof window.playSound==="function")window.playSound("win");
                 levelTime.minutes = formatedTime.minutes;
                 levelTime.seconds = formatedTime.seconds;
                 playersDissapearing();
@@ -736,7 +692,6 @@ function playGame() {
                     if (player.isOnBlock && !player.keys.pressed.up && !player.rampBlocked) {
                         player.velocity.y = -5.5;
                         player.keys.pressed.up = true;
-                        if(typeof window.playSound==="function")window.playSound("jump");
                     }
                     break;
                 case player.keys.left:

@@ -83,7 +83,6 @@
       <span class="ctrl-water">SU: Ok Tuslari</span>
     </div>
     <div class="topbar-right">
-      <button class="icon-btn" id="sound-btn" onclick="toggleSound()">Ses Kapat</button>
       <button class="icon-btn" id="fs-btn" onclick="toggleFullscreen()">Tam Ekran</button>
     </div>
   </div>
@@ -93,58 +92,6 @@
   </div>
 
   <script>
-    // Ses sistemi
-    let _actx = null;
-    let soundEnabled = localStorage.getItem("soundEnabled") !== "false";
-    document.getElementById("sound-btn").textContent = soundEnabled ? "Ses Kapat" : "Ses Ac";
-
-    window.playSound = function(type) {
-      if (!soundEnabled) return;
-      try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        if (!_actx) _actx = new AC();
-        const t = _actx.currentTime;
-        if (type === "jump") {
-          const o = _actx.createOscillator(), g = _actx.createGain();
-          o.connect(g); g.connect(_actx.destination);
-          o.type = "sine";
-          o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(420, t + 0.12);
-          g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-          o.start(t); o.stop(t + 0.18);
-        } else if (type === "death") {
-          const o = _actx.createOscillator(), g = _actx.createGain();
-          o.connect(g); g.connect(_actx.destination);
-          o.type = "sawtooth";
-          o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.5);
-          g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-          o.start(t); o.stop(t + 0.5);
-        } else if (type === "win") {
-          [523, 659, 784, 1047].forEach(function(freq, i) {
-            const o = _actx.createOscillator(), g = _actx.createGain();
-            o.connect(g); g.connect(_actx.destination);
-            const s = t + i * 0.13;
-            o.type = "sine"; o.frequency.setValueAtTime(freq, s);
-            g.gain.setValueAtTime(0.2, s); g.gain.exponentialRampToValueAtTime(0.001, s + 0.25);
-            o.start(s); o.stop(s + 0.25);
-          });
-        } else if (type === "diamond") {
-          const o = _actx.createOscillator(), g = _actx.createGain();
-          o.connect(g); g.connect(_actx.destination);
-          o.type = "sine";
-          o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1320, t + 0.08);
-          g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-          o.start(t); o.stop(t + 0.12);
-        }
-      } catch(e) {}
-    };
-
-    function toggleSound() {
-      soundEnabled = !soundEnabled;
-      localStorage.setItem("soundEnabled", soundEnabled);
-      document.getElementById("sound-btn").textContent = soundEnabled ? "Ses Kapat" : "Ses Ac";
-    }
-
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();

@@ -154,7 +154,6 @@ export class Player extends Sprite {
             ) {
                 //collect diamond
                 this.diamonds.splice(i, 1);
-                if (typeof window.playSound === "function") window.playSound("diamond");
             }
         }
     }
