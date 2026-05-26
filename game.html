@@ -179,7 +179,9 @@
         id="game-frame"
         src="public/game/index.html"
         allowfullscreen
+        allow="fullscreen"
         onload="hideLoading()"
+        style="width:100%;aspect-ratio:4/3;border:none;display:block;background:#000;"
       ></iframe>
     </div>
   </div>
@@ -197,11 +199,21 @@
     }
 
     function toggleFullscreen() {
-      const container = document.getElementById('game-frame-container');
+      const iframe = document.getElementById('game-frame');
       if (!document.fullscreenElement) {
-        container.requestFullscreen().catch(err => {
-          alert('Tam ekran açılamadı: ' + err.message);
-        });
+        // iframe'i fullscreen yap — oyun düzgün görünür
+        const req = iframe.requestFullscreen
+          || iframe.webkitRequestFullscreen
+          || iframe.mozRequestFullScreen
+          || iframe.msRequestFullscreen;
+        if (req) {
+          req.call(iframe).catch(err => {
+            // iframe izin vermezse tüm sayfayı dene
+            document.documentElement.requestFullscreen().catch(() => {});
+          });
+        } else {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
       } else {
         document.exitFullscreen();
       }
