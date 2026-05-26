@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔥💧 Ateş ve Su - Oyna</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0d0d0d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+    }
+
+    .topbar {
+      width: 100%;
+      background: rgba(0,0,0,0.8);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .topbar h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #ff4500, #00bfff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .controls-mini {
+      display: flex;
+      gap: 20px;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .ctrl-fire { color: #ff6a00; font-weight: 600; }
+    .ctrl-water { color: #00bfff; font-weight: 600; }
+
+    .fullscreen-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    .fullscreen-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .game-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 10px;
+    }
+
+    #game-frame-container {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 40px rgba(255,69,0,0.2), 0 0 40px rgba(0,191,255,0.2);
+    }
+
+    #game-frame {
+      width: 100%;
+      aspect-ratio: 4/3;
+      border: none;
+      display: block;
+      background: #000;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 10;
+      transition: opacity 0.5s;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: #ff4500;
+      border-right-color: #00bfff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-size: 1rem;
+      color: #aaa;
+    }
+
+    .hint-bar {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 4px;
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    .hint-fire { color: #ff4500; }
+    .hint-water { color: #00bfff; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <a href="index.html" class="back-btn">← Ana Sayfa</a>
+      <h1>🔥 Ateş ve Su 💧</h1>
+    </div>
+    <div class="controls-mini">
+      <span class="ctrl-fire">🔥 WASD</span>
+      <span class="ctrl-water">💧 ← ↑ → ↓</span>
+    </div>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Tam Ekran</button>
+  </div>
+
+  <div class="game-wrapper">
+    <div id="game-frame-container">
+      <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Oyun yükleniyor...</div>
+      </div>
+      <iframe
+        id="game-frame"
+        src="public/game/index.html"
+        allowfullscreen
+        onload="hideLoading()"
+      ></iframe>
+    </div>
+  </div>
+
+  <div class="hint-bar">
+    <span class="hint-fire">🔥 Ateş: Ateşe girebilir — Suya girme!</span>
+    <span class="hint-water">💧 Su: Suya girebilir — Ateşe girme!</span>
+  </div>
+
+  <script>
+    function hideLoading() {
+      setTimeout(() => {
+        document.getElementById('loading').classList.add('hidden');
+      }, 800);
+    }
+
+    function toggleFullscreen() {
+      const container = document.getElementById('game-frame-container');
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+          alert('Tam ekran açılamadı: ' + err.message);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      const btn = document.querySelector('.fullscreen-btn');
+      btn.textContent = document.fullscreenElement ? '✕ Çık' : '⛶ Tam Ekran';
+    });
+
+    // iframe yüklenemezse 5 saniye sonra yükleniyor yazısını kaldır
+    setTimeout(() => {
+      document.getElementById('loading').classList.add('hidden');
+    }, 5000);
+  </script>
+
+</body>
+</html>

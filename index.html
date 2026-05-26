@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔥💧 Ateş ve Su - Challenge Modu</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a0a00 0%, #000820 50%, #1a0a00 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .hero h1 {
+      font-size: 4rem;
+      font-weight: 900;
+      letter-spacing: -2px;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #ff4500, #ff8c00, #00bfff, #0066ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.3); }
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      color: #aaa;
+      margin-bottom: 40px;
+    }
+
+    .controls-info {
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .player-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 20px 30px;
+      border: 2px solid;
+      text-align: center;
+      min-width: 200px;
+    }
+
+    .player-card.fire {
+      border-color: #ff4500;
+      box-shadow: 0 0 20px rgba(255,69,0,0.3);
+    }
+
+    .player-card.water {
+      border-color: #00bfff;
+      box-shadow: 0 0 20px rgba(0,191,255,0.3);
+    }
+
+    .player-card .emoji { font-size: 3rem; margin-bottom: 10px; }
+
+    .player-card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .player-card.fire h2 { color: #ff6a00; }
+    .player-card.water h2 { color: #00bfff; }
+
+    .key-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      font-size: 0.85rem;
+    }
+
+    .key {
+      background: rgba(255,255,255,0.15);
+      border-radius: 6px;
+      padding: 6px 4px;
+      font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .key.empty { background: transparent; border-color: transparent; }
+
+    .play-btn {
+      display: inline-block;
+      padding: 18px 60px;
+      font-size: 1.4rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      text-decoration: none;
+      background: linear-gradient(135deg, #ff4500, #ff8c00 40%, #00bfff 60%, #0066ff);
+      color: white;
+      letter-spacing: 1px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 30px rgba(255,69,0,0.4);
+    }
+
+    .play-btn:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 12px 40px rgba(255,69,0,0.6);
+    }
+
+    .play-btn:active { transform: scale(0.98); }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,165,0,0.2);
+      border: 1px solid #ff8c00;
+      color: #ff8c00;
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="badge">⚡ 2 Kişilik Challenge Modu</div>
+    <h1>🔥 ATEŞ & SU 💧</h1>
+    <p>Aynı klavyeyle iki kişi birlikte oynayın — kimin daha iyi olduğunu kanıtlayın!</p>
+
+    <div class="controls-info">
+      <div class="player-card fire">
+        <div class="emoji">🔥</div>
+        <h2>Ateş Çocuk</h2>
+        <div class="key-grid">
+          <div class="key empty"></div>
+          <div class="key">W</div>
+          <div class="key empty"></div>
+          <div class="key">A</div>
+          <div class="key">S</div>
+          <div class="key">D</div>
+        </div>
+      </div>
+
+      <div class="player-card water">
+        <div class="emoji">💧</div>
+        <h2>Su Kızı</h2>
+        <div class="key-grid">
+          <div class="key empty"></div>
+          <div class="key">↑</div>
+          <div class="key empty"></div>
+          <div class="key">←</div>
+          <div class="key">↓</div>
+          <div class="key">→</div>
+        </div>
+      </div>
+    </div>
+
+    <a href="game.html" class="play-btn">🎮 OYNAMAYA BAŞLA</a>
+  </div>
+</body>
+</html>
