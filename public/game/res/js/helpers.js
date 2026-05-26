@@ -80,22 +80,10 @@ const jsonsFiles = [
 ];
 
 async function loadData() {
-    // Hem game.html (../public/game/) hem de oyunun kendi index.html'i için path tespiti
-    const base = document.querySelector('script[src*="main.js"]')
-        ? document.querySelector('script[src*="main.js"]').src.replace("main.js", "")
-        : "./res/js/";
-    const dataBase = base.replace("/js/", "/data/");
-
     try {
         await Promise.all(jsonsFiles.map(async (jsonFile) => {
-            // Önce normal path dene, olmadığında alternatif path dene
-            let url = `${dataBase}${jsonFile}.json`;
-            let res = await fetch(url);
-            if (!res.ok) {
-                // game.html'den çalışıyorsa public/game/res/data/ path'i dene
-                res = await fetch(`./public/game/res/data/${jsonFile}.json`);
-            }
-            if (!res.ok) throw new Error(`${jsonFile}.json yuklenemedi`);
+            const res = await fetch(`./res/data/${jsonFile}.json`);
+            if (!res.ok) throw new Error(`${jsonFile}.json yuklenemedi: ${res.status}`);
             const data = await res.json();
             gameData[jsonFile] = data;
         }));

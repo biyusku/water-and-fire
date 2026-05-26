@@ -446,7 +446,7 @@ function playGame() {
 
                 if (player.died) {
                     died = true;
-                    playSound("death");
+                    if(typeof window.playSound==="function")window.playSound("death");
                 }
             });
 
@@ -462,7 +462,7 @@ function playGame() {
             //both doors opened
             if (allDoors[0].opened == true && allDoors[1].opened == true) {
                 setLevelCompleted(true);
-                playSound("win");
+                if(typeof window.playSound==="function")window.playSound("win");
                 levelTime.minutes = formatedTime.minutes;
                 levelTime.seconds = formatedTime.seconds;
                 playersDissapearing();
@@ -691,7 +691,7 @@ function playGame() {
                     if (player.isOnBlock && !player.keys.pressed.up && !player.rampBlocked) {
                         player.velocity.y = -5.5;
                         player.keys.pressed.up = true;
-                        playSound("jump");
+                        if(typeof window.playSound==="function")window.playSound("jump");
                     }
                     break;
                 case player.keys.left:
