@@ -61,18 +61,21 @@
       justify-content: center;
       background: #000;
     }
-    #game-frame {
-      width: 100%;
-      height: 100%;
-      border: none;
+    #canvas {
       display: block;
+      max-width: 100%;
+      max-height: calc(100vh - 44px);
     }
+    :fullscreen .topbar { display: none; }
+    :fullscreen #canvas { max-height: 100vh; }
+    :-webkit-full-screen .topbar { display: none; }
+    :-webkit-full-screen #canvas { max-height: 100vh; }
   </style>
 </head>
 <body>
   <div class="topbar">
     <div class="topbar-left">
-      <a href="index.html" class="back-btn">Ana Sayfa</a>
+      <a href="/" class="back-btn">Ana Sayfa</a>
       <h1>Ates ve Su</h1>
     </div>
     <div class="controls-mini">
@@ -86,27 +89,60 @@
   </div>
 
   <div class="game-wrapper">
-    <iframe
-      id="game-frame"
-      src="public/game/index.html"
-      allowfullscreen
-      allow="fullscreen"
-    ></iframe>
+    <canvas id="canvas"></canvas>
   </div>
 
   <script>
+    // Ses sistemi
+    let _actx = null;
     let soundEnabled = localStorage.getItem("soundEnabled") !== "false";
     document.getElementById("sound-btn").textContent = soundEnabled ? "Ses Kapat" : "Ses Ac";
+
+    window.playSound = function(type) {
+      if (!soundEnabled) return;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!_actx) _actx = new AC();
+        const t = _actx.currentTime;
+        if (type === "jump") {
+          const o = _actx.createOscillator(), g = _actx.createGain();
+          o.connect(g); g.connect(_actx.destination);
+          o.type = "sine";
+          o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(420, t + 0.12);
+          g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+          o.start(t); o.stop(t + 0.18);
+        } else if (type === "death") {
+          const o = _actx.createOscillator(), g = _actx.createGain();
+          o.connect(g); g.connect(_actx.destination);
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.5);
+          g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          o.start(t); o.stop(t + 0.5);
+        } else if (type === "win") {
+          [523, 659, 784, 1047].forEach(function(freq, i) {
+            const o = _actx.createOscillator(), g = _actx.createGain();
+            o.connect(g); g.connect(_actx.destination);
+            const s = t + i * 0.13;
+            o.type = "sine"; o.frequency.setValueAtTime(freq, s);
+            g.gain.setValueAtTime(0.2, s); g.gain.exponentialRampToValueAtTime(0.001, s + 0.25);
+            o.start(s); o.stop(s + 0.25);
+          });
+        } else if (type === "diamond") {
+          const o = _actx.createOscillator(), g = _actx.createGain();
+          o.connect(g); g.connect(_actx.destination);
+          o.type = "sine";
+          o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(1320, t + 0.08);
+          g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+          o.start(t); o.stop(t + 0.12);
+        }
+      } catch(e) {}
+    };
 
     function toggleSound() {
       soundEnabled = !soundEnabled;
       localStorage.setItem("soundEnabled", soundEnabled);
       document.getElementById("sound-btn").textContent = soundEnabled ? "Ses Kapat" : "Ses Ac";
-      // iframe icindeki oyuna mesaj gonder
-      const iframe = document.getElementById("game-frame");
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: "soundToggle", enabled: soundEnabled }, "*");
-      }
     }
 
     function toggleFullscreen() {
@@ -117,10 +153,20 @@
       }
     }
 
-    document.addEventListener("fullscreenchange", () => {
+    document.addEventListener("fullscreenchange", function() {
       const btn = document.getElementById("fs-btn");
       if (btn) btn.textContent = document.fullscreenElement ? "Cik" : "Tam Ekran";
     });
   </script>
+
+  <!-- Oyun dogrudan bu sayfada calisir - iframe yok -->
+  <!-- Tum asset path'leri public/game/ altinda -->
+  <script>
+    // Oyun res/ path'lerini public/game/res/ olarak yonlendir
+    // main.js icindeki fetch('./res/data/...') cagrisi dogrudan URL'ye donusur
+    // Bu nedenle base path'i ayarliyoruz
+    window.__gameBasePath = '/public/game/';
+  </script>
+  <script type="module" src="/public/game/res/js/main.js"></script>
 </body>
 </html>

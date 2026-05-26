@@ -80,9 +80,12 @@ const jsonsFiles = [
 ];
 
 async function loadData() {
+    // game.html icinden calisirken path /public/game/res/data/ olmali
+    // public/game/index.html icinden calisirken ./res/data/ dogru
+    const base = (window.__gameBasePath || "") + "res/data/";
     try {
         await Promise.all(jsonsFiles.map(async (jsonFile) => {
-            const res = await fetch(`./res/data/${jsonFile}.json`);
+            const res = await fetch(`${base}${jsonFile}.json`);
             if (!res.ok) throw new Error(`${jsonFile}.json yuklenemedi: ${res.status}`);
             const data = await res.json();
             gameData[jsonFile] = data;
