@@ -17,6 +17,17 @@ const MIME = {
   ".woff": "font/woff",
 };
 
+function serveFile(res, filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME[ext] || "application/octet-stream";
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Cache-Control": "public, max-age=3600",
+    "X-Content-Type-Options": "nosniff",
+  });
+  fs.createReadStream(filePath).pipe(res);
+}
+
 http.createServer((req, res) => {
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
@@ -24,22 +35,22 @@ http.createServer((req, res) => {
   const filePath = path.join(__dirname, urlPath);
 
   fs.stat(filePath, (err, stat) => {
-    if (err || !stat.isFile()) {
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("404 Not Found: " + urlPath);
+    if (!err && stat.isFile()) {
+      serveFile(res, filePath);
       return;
     }
 
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME[ext] || "application/octet-stream";
+    // .html uzantisi olmadan geliyorsa ekle (ornegin /game -> /game.html)
+    const withHtml = filePath + ".html";
+    fs.stat(withHtml, (err2, stat2) => {
+      if (!err2 && stat2.isFile()) {
+        serveFile(res, withHtml);
+        return;
+      }
 
-    res.writeHead(200, {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=3600",
-      "X-Content-Type-Options": "nosniff",
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("404 Not Found: " + urlPath);
     });
-
-    fs.createReadStream(filePath).pipe(res);
   });
 }).listen(PORT, () => {
   console.log("Server running on port " + PORT);
