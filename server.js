@@ -37,46 +37,30 @@ const CORS_HEADERS = {
 // This avoids CORS issues and keeps the API key out of the browser.
 
 function vlvProxy(req, res, vlvPath) {
-  // Use curl as the HTTP client — Node's net module is blocked by Windows Defender
-  // on this machine but curl uses its own socket layer and works fine.
-  var spawn = require("child_process").spawn;
+  var axios = require("axios");
   var chunks = [];
   req.on("data", function(c) { chunks.push(c); });
   req.on("end", function() {
     var body = Buffer.concat(chunks).toString();
     var targetUrl = VLV_API + vlvPath;
 
-    var args = [
-      "-s", "--max-time", "10",
-      "-X", req.method,
-      "-H", "Content-Type: application/json",
-      "-H", "X-VLV-API-Key: " + VLV_API_KEY,
-      "-w", "\n__STATUS__%{http_code}",
-    ];
-
-    if (body && (req.method === "POST" || req.method === "PUT")) {
-      args.push("-d", body);
-    }
-
-    args.push(targetUrl);
-
-    var curlOut = [];
-    var proc = spawn("curl", args, { shell: false });
-    proc.stdout.on("data", function(d) { curlOut.push(d); });
-    proc.stderr.on("data", function(d) { console.error("[proxy-curl]", d.toString()); });
-    proc.on("close", function(code) {
-      if (code !== 0) {
-        res.writeHead(502, CORS_HEADERS);
-        res.end(JSON.stringify({ error: "curl exited " + code }));
-        return;
-      }
-      var full = Buffer.concat(curlOut).toString();
-      var sep  = full.lastIndexOf("\n__STATUS__");
-      var responseBody = sep >= 0 ? full.slice(0, sep) : full;
-      var status = sep >= 0 ? parseInt(full.slice(sep + 11)) : 200;
-
-      res.writeHead(status, Object.assign({ "Content-Type": "application/json" }, CORS_HEADERS));
-      res.end(responseBody);
+    axios({
+      method: req.method.toLowerCase(),
+      url: targetUrl,
+      headers: {
+        "Content-Type":  "application/json",
+        "X-VLV-API-Key": VLV_API_KEY,
+      },
+      data: body || undefined,
+      timeout: 10000,
+      validateStatus: function() { return true; },
+    }).then(function(proxyRes) {
+      res.writeHead(proxyRes.status, Object.assign({ "Content-Type": "application/json" }, CORS_HEADERS));
+      res.end(typeof proxyRes.data === "string" ? proxyRes.data : JSON.stringify(proxyRes.data));
+    }).catch(function(e) {
+      console.error("[proxy] error:", e.message);
+      res.writeHead(502, CORS_HEADERS);
+      res.end(JSON.stringify({ error: "VLV unreachable: " + e.message }));
     });
   });
 }

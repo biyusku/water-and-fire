@@ -211,8 +211,9 @@
 
 <script>
   // ── Config ──────────────────────────────────────────────────────────────
-  const API     = "http://213.146.184.56:9090";
-  const API_KEY = "254db297e6a785d586e237f5366dc722";
+  // Proxy through same-origin to avoid mixed-content (Railway = HTTPS)
+  const API     = "";
+  const API_KEY = "";
   const GAME_ID = "fireboy-watergirl";
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -242,9 +243,9 @@
 
     let res;
     try {
-      res = await fetch(`${API}/v1/matchmaking/join`, {
+      res = await fetch(`/vlv/v1/matchmaking/join`, {
         method:  "POST",
-        headers: { "Content-Type": "application/json", "X-VLV-API-Key": API_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ player_id: playerId, game_id: GAME_ID }),
       });
     } catch (e) {
