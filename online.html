@@ -211,10 +211,8 @@
 
 <script>
   // ── Config ──────────────────────────────────────────────────────────────
-  // All VLV API calls go through the local proxy (/vlv/*) to avoid CORS.
-  // API key is injected server-side — not exposed to the browser.
-  const API     = "";          // empty = same origin
-  const API_KEY = "";          // unused — proxy handles auth
+  const API     = "http://213.146.184.56:9090";
+  const API_KEY = "254db297e6a785d586e237f5366dc722";
   const GAME_ID = "fireboy-watergirl";
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -244,9 +242,9 @@
 
     let res;
     try {
-      res = await fetch(`/vlv/v1/matchmaking/join`, {
+      res = await fetch(`${API}/v1/matchmaking/join`, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-VLV-API-Key": API_KEY },
         body: JSON.stringify({ player_id: playerId, game_id: GAME_ID }),
       });
     } catch (e) {
