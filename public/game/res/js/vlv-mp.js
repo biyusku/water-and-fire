@@ -27,7 +27,12 @@
   }
 
   const SYNC_MS = 50; // 20 Hz
-  const SIG_URL = `ws://213.146.184.56:8080/ws?token=${encodeURIComponent(TOKEN)}`;
+  // Use same-origin WS proxy when served over HTTPS (e.g. Railway)
+  // to avoid mixed-content blocks. Falls back to direct WS when HTTP.
+  const _sigBase = location.protocol === "https:"
+    ? `wss://${location.host}/ws-signal`
+    : "ws://213.146.184.56:8080/ws";
+  const SIG_URL = `${_sigBase}?token=${encodeURIComponent(TOKEN)}`;
 
   const ICE = [
     { urls: "stun:213.146.184.56:3478" },

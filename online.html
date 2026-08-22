@@ -268,7 +268,9 @@
 
   // ── Lobby WebSocket ───────────────────────────────────────────────────────
   function openLobbyWs(tid) {
-    lobbyWs = new WebSocket(`ws://213.146.184.56:8081/lobby?ticket=${tid}`);
+    // Use same-origin WS proxy to avoid mixed-content on HTTPS hosts
+    const wsBase = location.protocol === "https:" ? "wss://" : "ws://";
+    lobbyWs = new WebSocket(`${wsBase}${location.host}/ws-lobby?ticket=${tid}`);
 
     lobbyWs.onmessage = (e) => {
       let msg; try { msg = JSON.parse(e.data); } catch { return; }
