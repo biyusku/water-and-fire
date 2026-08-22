@@ -34,7 +34,47 @@ import { drawTime, formatTime, levelTime } from "./time.js";
 import { Bridge } from "./ingameAssets/bridge.js";
 import { Ball } from "./ingameAssets/ball.js";
 
+// ---- Ses sistemi ----
+const _soundBase = (window.__gameBasePath || "") + "res/sounds/";
+let _soundEnabled = true;
 
+const _sounds = {
+    jump:     new Audio(_soundBase + "jump1.ogg"),
+    death:    new Audio(_soundBase + "death.ogg"),
+    diamond:  new Audio(_soundBase + "diamond.ogg"),
+    door:     new Audio(_soundBase + "door.ogg"),
+    finish:   new Audio(_soundBase + "finish.ogg"),
+    bgm:      new Audio(_soundBase + "normal_ost.ogg"),
+    deathOst: new Audio(_soundBase + "death_ost.ogg"),
+};
+_sounds.bgm.loop = true;
+_sounds.bgm.volume = 0.4;
+_sounds.deathOst.volume = 0.5;
+_sounds.finish.volume = 0.7;
+
+function _playSound(name) {
+    if (!_soundEnabled) return;
+    const snd = _sounds[name];
+    if (!snd) return;
+    snd.currentTime = 0;
+    snd.play().catch(() => {});
+}
+
+function _stopAll() {
+    Object.values(_sounds).forEach(s => { s.pause(); s.currentTime = 0; });
+}
+
+window.__setGameSound = function(enabled) {
+    _soundEnabled = enabled;
+    if (!enabled) {
+        _stopAll();
+    } else {
+        _sounds.bgm.play().catch(() => {});
+    }
+};
+window.__isSoundEnabled = () => _soundEnabled;
+window.__playGameSound = (name) => _playSound(name);
+// ---- /Ses sistemi ----
 
 let bgBlocks, died, menuButtonPressed, pauseGame, collisionBlocks, ponds;
 
@@ -63,6 +103,14 @@ function startGame() {
     died = false;
     menuButtonPressed = null;
     pauseGame = false;
+
+    // BGM başlat
+    _sounds.deathOst.pause();
+    _sounds.deathOst.currentTime = 0;
+    if (_soundEnabled) {
+        _sounds.bgm.currentTime = 0;
+        _sounds.bgm.play().catch(() => {});
+    }
 
     allAssets = [];
     allPlayers = [];
@@ -307,6 +355,9 @@ function playGame() {
         now = Date.now();
         delta = now - then;
 
+        // Expose players to parent window for VLV multiplayer sync
+        window.vlvPlayers = allPlayers;
+
         if (delta > interval) {
             then = now - (delta % interval);
 
@@ -466,6 +517,8 @@ function playGame() {
                 setLevelCompleted(true);
                 levelTime.minutes = formatedTime.minutes;
                 levelTime.seconds = formatedTime.seconds;
+                _sounds.bgm.pause();
+                _playSound("finish");
                 playersDissapearing();
                 return;
             }
@@ -473,6 +526,8 @@ function playGame() {
             pauseButton.draw();
 
             if (died) {
+                _sounds.bgm.pause();
+                _playSound("deathOst");
                 setMenuActive("lost");
                 drawMenuAnimation(menuActive, "up");
                 return;
@@ -692,6 +747,7 @@ function playGame() {
                     if (player.isOnBlock && !player.keys.pressed.up && !player.rampBlocked) {
                         player.velocity.y = -5.5;
                         player.keys.pressed.up = true;
+                        _playSound("jump");
                     }
                     break;
                 case player.keys.left:

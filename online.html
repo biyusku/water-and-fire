@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fireboy & Watergirl — Online Multiplayer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f1a;
+      color: #e8e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ══ Lobby ══════════════════════════════════════════════════════════════ */
+    #lobby {
+      text-align: center;
+      width: 440px;
+      max-width: 95vw;
+    }
+
+    .logo {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .logo .fire  { color: #ff6b35; }
+    .logo .water { color: #4fc3f7; }
+
+    .tagline {
+      color: #666;
+      font-size: 0.88rem;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: #16162a;
+      border: 1px solid #252540;
+      border-radius: 20px;
+      padding: 36px 32px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #aaa;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      margin-bottom: 14px;
+    }
+    .btn:hover   { opacity: .88; }
+    .btn:active  { transform: scale(.97); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-fire  { background: linear-gradient(135deg, #ff6b35 0%, #e53935 100%); color: #fff; }
+    .btn-water { background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%); color: #fff; }
+
+    .status {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #0e0e22;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.84rem;
+      color: #888;
+      min-height: 50px;
+    }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #333;
+    }
+    .dot.amber { background: #ff9800; animation: blink 1.1s infinite; }
+    .dot.green { background: #4caf50; }
+    .dot.red   { background: #f44336; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    .keys-guide {
+      margin-top: 28px;
+      display: flex;
+      justify-content: space-around;
+      font-size: 0.79rem;
+      color: #555;
+    }
+    .keys-guide .col { text-align: center; }
+    .keys-guide .col-name { font-weight: 700; margin-bottom: 6px; font-size: 0.88rem; }
+    .fire-col  .col-name { color: #ff6b35; }
+    .water-col .col-name { color: #4fc3f7; }
+
+    kbd {
+      display: inline-block;
+      background: #1f1f3a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #ccc;
+    }
+
+    /* ══ Game frame ══════════════════════════════════════════════════════════ */
+    #arena {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    #topbar {
+      width: min(1280px, 100vw);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 18px;
+      background: #14142a;
+      border-bottom: 1px solid #222244;
+    }
+
+    #role-label { font-size: 0.9rem; font-weight: 600; }
+    #p2p-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      background: #ff9800;
+      color: #fff;
+    }
+    #p2p-badge.ok   { background: #4caf50; }
+    #p2p-badge.lost { background: #f44336; }
+
+    #game-frame {
+      width: min(1280px, 100vw);
+      height: 720px;
+      border: none;
+      display: block;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Lobby UI ═══════════════════════════════════════════════════════════ -->
+<div id="lobby">
+  <div class="logo">
+    <span class="fire">Fireboy</span> &amp;
+    <span class="water">Watergirl</span>
+  </div>
+  <div class="tagline">Online co-op · powered by VLV infrastructure</div>
+
+  <div class="card">
+    <div class="card-title">Pick your character</div>
+
+    <button class="btn btn-fire"  id="btn-fire"  onclick="joinAs('host')">
+      🔥 Play as Fireboy
+    </button>
+    <button class="btn btn-water" id="btn-water" onclick="joinAs('guest')">
+      💧 Play as Watergirl
+    </button>
+
+    <div class="status">
+      <div class="dot" id="sdot"></div>
+      <span id="stext">Choose a character to find a match</span>
+    </div>
+
+    <div class="keys-guide">
+      <div class="col fire-col">
+        <div class="col-name">🔥 Fireboy</div>
+        <div><kbd>←</kbd> <kbd>→</kbd> move</div>
+        <div style="margin-top:4px"><kbd>↑</kbd> jump</div>
+      </div>
+      <div class="col water-col">
+        <div class="col-name">💧 Watergirl</div>
+        <div><kbd>A</kbd> <kbd>D</kbd> move</div>
+        <div style="margin-top:4px"><kbd>W</kbd> jump</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Game area ══════════════════════════════════════════════════════════ -->
+<div id="arena">
+  <div id="topbar">
+    <span id="role-label">—</span>
+    <span id="p2p-badge">Connecting P2P…</span>
+  </div>
+  <iframe id="game-frame" src="about:blank" allowfullscreen
+          allow="autoplay"></iframe>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────
+  // All VLV API calls go through the local proxy (/vlv/*) to avoid CORS.
+  // API key is injected server-side — not exposed to the browser.
+  const API     = "";          // empty = same origin
+  const API_KEY = "";          // unused — proxy handles auth
+  const GAME_ID = "fireboy-watergirl";
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let myRole   = null;   // "host" | "guest"
+  let ticketId = null;
+  let lobbyWs  = null;
+
+  // ── UI helpers ───────────────────────────────────────────────────────────
+  function setStatus(msg, state) {
+    document.getElementById("stext").textContent = msg;
+    document.getElementById("sdot").className = "dot " + (state || "");
+  }
+
+  function lock() {
+    document.getElementById("btn-fire").disabled  = true;
+    document.getElementById("btn-water").disabled = true;
+  }
+
+  // ── Matchmaking ──────────────────────────────────────────────────────────
+  async function joinAs(role) {
+    lock();
+    myRole = role;
+    const char     = role === "host" ? "fireboy" : "watergirl";
+    const playerId = char + "-" + Math.random().toString(36).slice(2, 8);
+
+    setStatus("Joining matchmaking queue…", "amber");
+
+    let res;
+    try {
+      res = await fetch(`/vlv/v1/matchmaking/join`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_id: playerId, game_id: GAME_ID }),
+      });
+    } catch (e) {
+      setStatus("VLV server unreachable: " + e.message, "red");
+      return;
+    }
+
+    if (!res.ok) {
+      setStatus("Matchmaking failed (HTTP " + res.status + ")", "red");
+      return;
+    }
+
+    const data = await res.json();
+    ticketId = data.ticket_id;
+    const charLabel = role === "host" ? "🔥 Fireboy" : "💧 Watergirl";
+    setStatus(`${charLabel} — waiting for opponent…`, "amber");
+
+    openLobbyWs(ticketId);
+  }
+
+  // ── Lobby WebSocket ───────────────────────────────────────────────────────
+  function openLobbyWs(tid) {
+    lobbyWs = new WebSocket(`ws://213.146.184.56:8081/lobby?ticket=${tid}`);
+
+    lobbyWs.onmessage = (e) => {
+      let msg; try { msg = JSON.parse(e.data); } catch { return; }
+      if (msg.type === "matched") {
+        lobbyWs.close();
+        setStatus("Opponent found! Loading game…", "green");
+        setTimeout(() => launchGame(msg.token), 600);
+      }
+    };
+
+    lobbyWs.onerror = () => setStatus("Lobby connection error", "red");
+  }
+
+  // ── Game launch ───────────────────────────────────────────────────────────
+  function launchGame(token) {
+    document.getElementById("lobby").style.display = "none";
+    document.getElementById("arena").style.display = "flex";
+
+    const roleLabel = myRole === "host"
+      ? "🔥 You are Fireboy  ·  ← → move  ·  ↑ jump"
+      : "💧 You are Watergirl  ·  A D move  ·  W jump";
+    document.getElementById("role-label").textContent = roleLabel;
+
+    // Build iframe URL — vlv-mp.js auto-inits from URL params
+    const gameUrl = new URL("./public/game/index.html", location.href);
+    gameUrl.searchParams.set("vlv",   "1");
+    gameUrl.searchParams.set("role",  myRole);
+    gameUrl.searchParams.set("token", token);
+
+    const frame = document.getElementById("game-frame");
+    frame.src = gameUrl.toString();
+  }
+
+  // ── Listen for P2P events from iframe ───────────────────────────────────
+  window.addEventListener("message", (e) => {
+    if (!e.data || e.data.vlv == null) return;
+    const badge = document.getElementById("p2p-badge");
+    if (e.data.vlv === "connected") {
+      badge.textContent = "P2P Connected ✓";
+      badge.className   = "ok";
+    } else if (e.data.vlv === "disconnected") {
+      badge.textContent = "Peer disconnected";
+      badge.className   = "lost";
+    }
+  });
+</script>
+</body>
+</html>
