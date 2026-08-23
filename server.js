@@ -1,158 +1,179 @@
-const http    = require("http");
-const fs      = require("fs");
-const path    = require("path");
-const url     = require("url");
-const { createProxyMiddleware } = require("http-proxy-middleware");
+/**
+ * server.js — VLV Games Platform
+ *
+ * Routes:
+ *   GET /              → public/index.html  (lobby)
+ *   GET /games/:game/* → public/games/:game/* (static game assets)
+ *   GET /public/*      → public/* (static assets)
+ *   WS  /room-ws       → room presence + game start coordination
+ *
+ * VLV API calls (matchmaking) are made directly from the browser
+ * to vlvapi.rusk.agency — no proxy needed since CORS is enabled.
+ */
 
-const PORT        = process.env.PORT || 3000;
-const VLV_API     = process.env.VLV_API    || "https://vlvapi.rusk.agency";
-const VLV_SIGNAL  = process.env.VLV_SIGNAL || "wss://vlvsignal.rusk.agency";
-const VLV_LOBBY   = process.env.VLV_LOBBY  || "wss://vlvlobby.rusk.agency";
-const VLV_API_KEY = process.env.VLV_API_KEY || "254db297e6a785d586e237f5366dc722";
+const http   = require("http");
+const fs     = require("fs");
+const path   = require("path");
+const { WebSocketServer } = require("ws");
 
+const PORT = process.env.PORT || 3000;
+
+// ── MIME types ────────────────────────────────────────────────────────────────
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js":   "application/javascript; charset=utf-8",
   ".mjs":  "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".css":  "text/css; charset=utf-8",
+  ".css":  "text/css",
   ".png":  "image/png",
   ".jpg":  "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".gif":  "image/gif",
   ".svg":  "image/svg+xml",
   ".ico":  "image/x-icon",
   ".ogg":  "audio/ogg",
   ".mp3":  "audio/mpeg",
   ".wav":  "audio/wav",
+  ".json": "application/json",
+  ".woff": "font/woff",
+  ".woff2":"font/woff2",
+  ".ttf":  "font/ttf",
 };
 
-const CORS = {
-  "Access-Control-Allow-Origin":  "*",
-  "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,X-VLV-API-Key",
-};
+// ── Static file server ────────────────────────────────────────────────────────
+const PUBLIC_DIR = path.join(__dirname, "public");
 
-// ── REST proxy: /vlv/* → VLV API ──────────────────────────────────────────
-function vlvProxy(req, res, vlvPath) {
-  var axios  = require("axios");
-  var chunks = [];
-  req.on("data", function(c) { chunks.push(c); });
-  req.on("end",  function() {
-    var body = Buffer.concat(chunks).toString();
-    axios({
-      method: req.method.toLowerCase(),
-      url:    VLV_API + vlvPath,
-      headers: { "Content-Type": "application/json", "X-VLV-API-Key": VLV_API_KEY },
-      data:   body || undefined,
-      timeout: 10000,
-      validateStatus: function() { return true; },
-    }).then(function(r) {
-      res.writeHead(r.status, Object.assign({ "Content-Type": "application/json" }, CORS));
-      res.end(typeof r.data === "string" ? r.data : JSON.stringify(r.data));
-    }).catch(function(e) {
-      console.error("[vlv-proxy]", e.message);
-      res.writeHead(502, CORS);
-      res.end(JSON.stringify({ error: "VLV unreachable: " + e.message }));
+function serveFile(filePath, res) {
+  fs.readFile(filePath, function(err, data) {
+    if (err) {
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Not found");
+      return;
+    }
+    const ext  = path.extname(filePath).toLowerCase();
+    const mime = MIME[ext] || "application/octet-stream";
+    res.writeHead(200, {
+      "Content-Type": mime,
+      "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=3600",
     });
+    res.end(data);
   });
 }
 
-// ── WS proxies ────────────────────────────────────────────────────────────
-// http-proxy-middleware handles WS upgrade + framing + keepalive correctly
-var signalProxy = createProxyMiddleware({
-  target:      VLV_SIGNAL.replace("ws://", "http://").replace("wss://", "https://"),
-  changeOrigin: true,
-  ws:          true,
-  pathRewrite: { "^/ws-signal": "/ws" },
-  on: {
-    error: function(err, req, res) { console.error("[signal-proxy]", err.message); },
-  },
-});
-
-var lobbyProxy = createProxyMiddleware({
-  target:      VLV_LOBBY.replace("ws://", "http://").replace("wss://", "https://"),
-  changeOrigin: true,
-  ws:          true,
-  pathRewrite: { "^/ws-lobby": "/lobby" },
-  on: {
-    error: function(err, req, res) { console.error("[lobby-proxy]", err.message); },
-  },
-});
-
-// ── Static file server ────────────────────────────────────────────────────
-function serveFile(res, filePath) {
-  var ext = path.extname(filePath).toLowerCase();
-  var ct  = MIME[ext] || "application/octet-stream";
-  res.writeHead(200, { "Content-Type": ct, "Cache-Control": "public,max-age=3600" });
-  fs.createReadStream(filePath).pipe(res);
-}
-
-function tryPaths(paths, res, urlPath) {
-  if (!paths.length) {
-    res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("404 Not Found: " + urlPath);
-    return;
+// ── HTTP server ───────────────────────────────────────────────────────────────
+const server = http.createServer(function(req, res) {
+  // Health check
+  if (req.url === "/healthz") {
+    res.writeHead(200); res.end("ok"); return;
   }
-  fs.stat(paths[0], function(err, stat) {
-    if (!err && stat.isFile()) serveFile(res, paths[0]);
-    else tryPaths(paths.slice(1), res, urlPath);
+
+  // Strip query string for file lookup
+  const urlPath = req.url.split("?")[0];
+
+  // Root → lobby
+  if (urlPath === "/" || urlPath === "") {
+    return serveFile(path.join(PUBLIC_DIR, "index.html"), res);
+  }
+
+  // All other paths → serve from public/
+  const filePath = path.join(PUBLIC_DIR, urlPath);
+
+  // Security: prevent path traversal
+  if (!filePath.startsWith(PUBLIC_DIR)) {
+    res.writeHead(403); res.end("Forbidden"); return;
+  }
+
+  // If path has no extension, try .html
+  if (!path.extname(urlPath)) {
+    const htmlPath = filePath + ".html";
+    if (fs.existsSync(htmlPath)) return serveFile(htmlPath, res);
+    // Try index.html in directory
+    const indexPath = path.join(filePath, "index.html");
+    if (fs.existsSync(indexPath)) return serveFile(indexPath, res);
+  }
+
+  serveFile(filePath, res);
+});
+
+// ── Room WebSocket server ─────────────────────────────────────────────────────
+// Rooms: { code: { players: { id: { ws, name, isHost } } } }
+const rooms = {};
+
+const wss = new WebSocketServer({ server });
+
+wss.on("connection", function(ws, req) {
+  const params  = new URLSearchParams(req.url.replace("/room-ws", "").replace("?",""));
+  const code    = (params.get("code") || "").toUpperCase().slice(0,8);
+  const name    = (params.get("name") || "Player").slice(0,20);
+  const isHost  = params.get("host") === "1";
+  const playerId = (params.get("id") || Math.random().toString(36).slice(2)).slice(0,24);
+
+  if (!code) { ws.close(1008, "No room code"); return; }
+
+  // Create room if needed
+  if (!rooms[code]) rooms[code] = { players: {} };
+  const room = rooms[code];
+
+  // Max 2 players
+  if (Object.keys(room.players).length >= 2) {
+    ws.send(JSON.stringify({ type: "error", msg: "Room is full" }));
+    ws.close(); return;
+  }
+
+  room.players[playerId] = { ws, name, isHost };
+  ws.playerId = playerId;
+  ws.roomCode = code;
+
+  broadcastRoomState(room);
+  console.log(`[room] ${code} — ${name} joined (${Object.keys(room.players).length}/2)`);
+
+  ws.on("message", function(raw) {
+    var m; try { m = JSON.parse(raw); } catch { return; }
+
+    if (m.type === "start_game" && isHost) {
+      // Host wants to start a game — send start to all players
+      // Each player will connect to VLV matchmaking themselves using the game's online.html
+      // We just tell everyone which game and what role to take
+      var playerIds = Object.keys(room.players);
+      playerIds.forEach(function(pid, idx) {
+        var p = room.players[pid];
+        var role = p.isHost ? "host" : "guest";
+        p.ws.send(JSON.stringify({
+          type: "start_game",
+          game: m.game,
+          role: role,
+          roomCode: code
+        }));
+      });
+      console.log(`[room] ${code} — starting game: ${m.game}`);
+    }
+  });
+
+  ws.on("close", function() {
+    if (!rooms[ws.roomCode]) return;
+    delete rooms[ws.roomCode].players[ws.playerId];
+    if (Object.keys(rooms[ws.roomCode].players).length === 0) {
+      delete rooms[ws.roomCode];
+      console.log(`[room] ${ws.roomCode} — closed (empty)`);
+    } else {
+      broadcastRoomState(rooms[ws.roomCode]);
+    }
+  });
+});
+
+function broadcastRoomState(room) {
+  // Build serializable player list (no ws reference)
+  var playerList = {};
+  Object.keys(room.players).forEach(function(id) {
+    var p = room.players[id];
+    playerList[id] = { name: p.name, isHost: p.isHost };
+  });
+  var msg = JSON.stringify({ type: "room_state", players: playerList });
+  Object.values(room.players).forEach(function(p) {
+    if (p.ws.readyState === p.ws.OPEN) p.ws.send(msg);
   });
 }
 
-// ── HTTP server ───────────────────────────────────────────────────────────
-var server = http.createServer(function(req, res) {
-  var parsed  = url.parse(req.url);
-  var urlPath = parsed.pathname;
-
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, CORS);
-    res.end();
-    return;
-  }
-
-  // REST proxy
-  if (urlPath.startsWith("/vlv/")) {
-    vlvProxy(req, res, urlPath.slice(4) + (parsed.search || ""));
-    return;
-  }
-
-  // WS proxy HTTP fallback (non-upgrade requests to proxy paths)
-  if (urlPath.startsWith("/ws-signal")) {
-    signalProxy(req, res);
-    return;
-  }
-  if (urlPath.startsWith("/ws-lobby")) {
-    lobbyProxy(req, res);
-    return;
-  }
-
-  // Static files
-  if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
-  var base = __dirname;
-  tryPaths([
-    path.join(base, urlPath),
-    path.join(base, urlPath + ".html"),
-    path.join(base, "public", "game", urlPath),
-    path.join(base, "public", "game", urlPath + ".html"),
-  ], res, urlPath);
-});
-
-// ── WebSocket upgrade proxy ───────────────────────────────────────────────
-server.on("upgrade", function(req, socket, head) {
-  var urlPath = url.parse(req.url).pathname;
-  if (urlPath.startsWith("/ws-signal")) {
-    signalProxy.upgrade(req, socket, head);
-  } else if (urlPath.startsWith("/ws-lobby")) {
-    lobbyProxy.upgrade(req, socket, head);
-  } else {
-    socket.destroy();
-  }
-});
-
+// ── Start ─────────────────────────────────────────────────────────────────────
 server.listen(PORT, function() {
-  console.log("Server on http://localhost:" + PORT);
-  console.log("REST proxy:      /vlv/*      → " + VLV_API);
-  console.log("Signaling proxy: /ws-signal  → " + VLV_SIGNAL + "/ws");
-  console.log("Lobby proxy:     /ws-lobby   → " + VLV_LOBBY + "/lobby");
+  console.log(`[vlv-games] listening on port ${PORT}`);
 });

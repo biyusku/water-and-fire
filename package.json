@@ -1,1 +1,10 @@
-{"name":"water-and-fire","version":"1.0.0","scripts":{"start":"node server.js"},"dependencies":{"axios":"^1.19.0","http-proxy-middleware":"^4.2.0","ws":"^8.21.3"}}
+{
+  "name": "vlv-games",
+  "version": "2.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  }
+}
