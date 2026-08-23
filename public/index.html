@@ -253,9 +253,9 @@ function openRoomWs() {
       players = m.players;
       renderPlayers();
       setStatus(Object.keys(players).length + " player(s) in room", "green");
-    } else if (m.type === "start_game" && !isHost) {
-      // Host started the game — we follow
-      launchGame(m.game, m.token, m.role);
+    } else if (m.type === "start_game") {
+      // Both host and guest redirect to the game's own online.html
+      launchGame(m.game, m.role);
     } else if (m.type === "error") {
       setStatus(m.msg, "red");
     }
@@ -336,19 +336,20 @@ function startGame() {
   }
 
   setStatus("Starting game…", "amber");
-  // Tell server to initiate VLV matchmaking for both players
+  // Tell server — both players will receive start_game and redirect
   roomWs.send(JSON.stringify({ type: "start_game", game: selectedGame.id }));
+  // Host also gets the message back from server, no need to redirect here
 }
 
-// ── Launch iframe ─────────────────────────────────────────────────────────────
-function launchGame(gameId, token, role) {
+// ── Launch game ───────────────────────────────────────────────────────────────
+// Redirect to the game's own online.html — matchmaking happens there
+function launchGame(gameId, role) {
   var game = GAMES.find(function(g){ return g.id === gameId; });
   if (!game) return;
   var url = new URL(game.url, location.href);
-  url.searchParams.set("vlv", "1");
-  url.searchParams.set("role", role);
-  url.searchParams.set("token", token);
+  // Pass name and role so the game's online.html can pre-fill and auto-start
   url.searchParams.set("name", encodeURIComponent(myName));
+  url.searchParams.set("autostart", role);   // "host" | "guest"
   window.location.href = url.toString();
 }
 

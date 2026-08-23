@@ -101,9 +101,13 @@
   }
 
   (function initUI() {
-    var rid   = getRoomFromUrl();
-    var taken = getTakenFromUrl();
-    var sec   = document.getElementById("room-section");
+    var rid       = getRoomFromUrl();
+    var taken     = getTakenFromUrl();
+    var autostart = new URLSearchParams(location.search).get("autostart");
+    var nameParam = new URLSearchParams(location.search).get("name");
+    if (nameParam) document.getElementById("player-name").value = decodeURIComponent(nameParam);
+
+    var sec = document.getElementById("room-section");
 
     if (rid) {
       roomId = rid;
@@ -133,6 +137,11 @@
           '<button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
         '</div>';
       setStatus("Pick a character to create your room", "");
+    }
+
+    // Auto-start if coming from lobby
+    if (autostart === "host" || autostart === "guest") {
+      setTimeout(function() { joinAs(autostart); }, 300);
     }
   })();
 

@@ -97,7 +97,12 @@
   }
 
   (function initUI() {
-    var rid = getRoomFromUrl(), taken = getTakenFromUrl();
+    var rid      = getRoomFromUrl();
+    var taken    = getTakenFromUrl();
+    var autostart = new URLSearchParams(location.search).get("autostart"); // "host"|"guest"
+    var nameParam = new URLSearchParams(location.search).get("name");
+    if (nameParam) document.getElementById("player-name").value = decodeURIComponent(nameParam);
+
     var sec = document.getElementById("room-section");
     if (rid) {
       roomId = rid;
@@ -118,6 +123,11 @@
           '<div class="room-link-row"><div id="room-url"></div>' +
           '<button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
         '</div>';
+    }
+
+    // Auto-start if coming from lobby (autostart=host|guest)
+    if (autostart === "host" || autostart === "guest") {
+      setTimeout(function() { joinAs(autostart); }, 300);
     }
   })();
 
