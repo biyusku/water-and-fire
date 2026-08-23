@@ -208,18 +208,18 @@
     var nameVal = document.getElementById("player-name").value.trim();
     myName = nameVal || (role==="host" ? "Fireboy" : "Watergirl");
 
-    // After selecting character, update the shareable link to include taken slot
-    updateRoomUrl();
-    var el = document.getElementById("room-url");
-    if (el) el.textContent = buildRoomUrl(roomId, role);
+    // Update link with taken slot and keep room-box visible while waiting
+    var roomBox = document.getElementById("room-box");
+    var roomUrlEl = document.getElementById("room-url");
+    if (roomBox) roomBox.style.display = "block";
+    if (roomUrlEl) roomUrlEl.textContent = buildRoomUrl(roomId, role);
 
     var safe = myName.replace(/[^a-zA-Z0-9]/g,"").slice(0,12)||"p";
     var playerId = (role==="host"?"h-":"g-") + safe + "-" + Math.random().toString(36).slice(2,6);
     var gameId   = GAME_ID_PREFIX + roomId;
 
-    setStatus((role==="host" ? "&#x1F525; Fireboy" : "&#x1F4A7; Watergirl") + " &mdash; waiting for opponent&hellip;", "amber");
     document.getElementById("stext").innerHTML =
-      (role==="host" ? "🔥 Fireboy" : "💧 Watergirl") + " — waiting for opponent…";
+      (role==="host" ? "🔥 Fireboy" : "💧 Watergirl") + " — waiting for opponent… <span style='color:#9090c0;font-size:0.8em'>(share the link above!)</span>";
 
     var res;
     try {
