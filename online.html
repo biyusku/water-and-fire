@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fireboy & Watergirl — Online Multiplayer</title>
+  <title>Fireboy & Watergirl — Online</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       background: #0f0f1a;
       color: #e8e8f0;
@@ -18,304 +17,308 @@
       justify-content: center;
     }
 
-    /* ══ Lobby ══════════════════════════════════════════════════════════════ */
-    #lobby {
-      text-align: center;
-      width: 440px;
-      max-width: 95vw;
-    }
-
-    .logo {
-      font-size: 2.2rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      margin-bottom: 6px;
-    }
+    #lobby { text-align: center; width: 440px; max-width: 95vw; }
+    .logo { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; }
     .logo .fire  { color: #ff6b35; }
     .logo .water { color: #4fc3f7; }
-
-    .tagline {
-      color: #666;
-      font-size: 0.88rem;
-      margin-bottom: 40px;
-    }
+    .tagline { color: #555; font-size: 0.88rem; margin-bottom: 32px; }
 
     .card {
       background: #16162a;
       border: 1px solid #252540;
       border-radius: 20px;
-      padding: 36px 32px;
+      padding: 32px 28px;
     }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: #888; margin-bottom: 18px; }
 
-    .card-title {
+    input[type=text] {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0e0e22;
+      border: 1px solid #2a2a45;
+      border-radius: 10px;
+      color: #e8e8f0;
       font-size: 1rem;
-      font-weight: 600;
-      color: #aaa;
-      margin-bottom: 24px;
+      margin-bottom: 14px;
+      outline: none;
+    }
+    input[type=text]:focus { border-color: #4a4a80; }
+
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 6px 0 14px;
+      color: #444; font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: ""; flex: 1; height: 1px; background: #252540;
     }
 
     .btn {
-      display: block;
-      width: 100%;
-      padding: 16px;
-      border: none;
-      border-radius: 12px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      cursor: pointer;
+      display: block; width: 100%; padding: 14px;
+      border: none; border-radius: 12px;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
       transition: opacity .15s, transform .1s;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
     .btn:hover   { opacity: .88; }
     .btn:active  { transform: scale(.97); }
     .btn:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-fire  { background: linear-gradient(135deg,#ff6b35,#e53935); color:#fff; }
+    .btn-water { background: linear-gradient(135deg,#1e88e5,#00acc1); color:#fff; }
+    .btn-room  { background: #1e1e3a; border: 1px solid #333360; color: #aaa; font-size: 0.9rem; }
 
-    .btn-fire  { background: linear-gradient(135deg, #ff6b35 0%, #e53935 100%); color: #fff; }
-    .btn-water { background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%); color: #fff; }
+    #room-box {
+      display: none;
+      background: #0e0e22;
+      border: 1px solid #2a2a45;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .room-label { color: #666; font-size: 0.82rem; margin-bottom: 8px; }
+    .room-link-row { display: flex; gap: 8px; align-items: center; }
+    #room-url {
+      flex: 1; background: #16162a; border: 1px solid #333;
+      border-radius: 6px; padding: 8px 10px;
+      color: #9090c0; font-family: monospace; font-size: 0.78rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #copy-btn {
+      background: #252545; border: none; border-radius: 6px;
+      color: #aaa; padding: 8px 12px; cursor: pointer; font-size: 0.8rem;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    #copy-btn:hover  { background: #333360; }
+    #copy-btn.copied { color: #4caf50; }
 
     .status {
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #0e0e22;
-      border-radius: 10px;
-      padding: 14px 16px;
-      font-size: 0.84rem;
-      color: #888;
-      min-height: 50px;
+      margin-top: 16px; display: flex; align-items: center; gap: 10px;
+      background: #0e0e22; border-radius: 10px;
+      padding: 12px 16px; font-size: 0.84rem; color: #777; min-height: 46px;
     }
-
-    .dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: #333;
-    }
-    .dot.amber { background: #ff9800; animation: blink 1.1s infinite; }
-    .dot.green { background: #4caf50; }
-    .dot.red   { background: #f44336; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+    .dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; background:#333; }
+    .dot.amber { background:#ff9800; animation:blink 1.1s infinite; }
+    .dot.green { background:#4caf50; }
+    .dot.red   { background:#f44336; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
 
     .keys-guide {
-      margin-top: 28px;
-      display: flex;
-      justify-content: space-around;
-      font-size: 0.79rem;
-      color: #555;
+      margin-top: 24px; display: flex; justify-content: space-around;
+      font-size: 0.79rem; color: #555;
     }
     .keys-guide .col { text-align: center; }
-    .keys-guide .col-name { font-weight: 700; margin-bottom: 6px; font-size: 0.88rem; }
-    .fire-col  .col-name { color: #ff6b35; }
+    .keys-guide .col-name { font-weight: 700; margin-bottom: 5px; font-size:0.87rem; }
+    .fire-col .col-name  { color: #ff6b35; }
     .water-col .col-name { color: #4fc3f7; }
-
     kbd {
-      display: inline-block;
-      background: #1f1f3a;
-      border: 1px solid #333;
-      border-radius: 4px;
-      padding: 1px 7px;
-      font-family: monospace;
-      font-size: 0.82rem;
-      color: #ccc;
+      background:#1f1f3a; border:1px solid #333; border-radius:4px;
+      padding:1px 7px; font-family:monospace; font-size:0.8rem; color:#ccc;
     }
 
-    /* ══ Game frame ══════════════════════════════════════════════════════════ */
-    #arena {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
-
+    #arena { display:none; flex-direction:column; align-items:center; width:100%; }
     #topbar {
-      width: min(1280px, 100vw);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 18px;
-      background: #14142a;
-      border-bottom: 1px solid #222244;
+      width: min(1280px,100vw);
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 8px 18px; background:#14142a; border-bottom:1px solid #1e1e40;
     }
-
-    #role-label { font-size: 0.9rem; font-weight: 600; }
+    #role-label { font-size:0.9rem; font-weight:600; }
     #p2p-badge {
-      font-size: 0.78rem;
-      font-weight: 700;
-      padding: 4px 14px;
-      border-radius: 20px;
-      background: #ff9800;
-      color: #fff;
+      font-size:0.78rem; font-weight:700; padding:4px 14px;
+      border-radius:20px; background:#ff9800; color:#fff;
     }
-    #p2p-badge.ok   { background: #4caf50; }
-    #p2p-badge.lost { background: #f44336; }
-
+    #p2p-badge.ok   { background:#4caf50; }
+    #p2p-badge.lost { background:#f44336; }
     #game-frame {
-      width: min(1280px, 100vw);
-      height: 720px;
-      border: none;
-      display: block;
-      background: #000;
+      width:min(1280px,100vw); height:720px;
+      border:none; display:block; background:#000;
     }
   </style>
 </head>
 <body>
 
-<!-- ══ Lobby UI ═══════════════════════════════════════════════════════════ -->
 <div id="lobby">
-  <div class="logo">
-    <span class="fire">Fireboy</span> &amp;
-    <span class="water">Watergirl</span>
-  </div>
-  <div class="tagline">Online co-op · powered by VLV infrastructure</div>
+  <div class="logo"><span class="fire">Fireboy</span> &amp; <span class="water">Watergirl</span></div>
+  <div class="tagline">Online co-op &middot; powered by VLV</div>
 
   <div class="card">
-    <div class="card-title">Pick your character</div>
+    <div class="card-title">Your name</div>
+    <input type="text" id="player-name" placeholder="Enter your name&hellip;" maxlength="16"
+      autocomplete="off" spellcheck="false" />
 
-    <input type="text" id="player-name" placeholder="Your name..." maxlength="16"
-      style="width:100%;padding:12px 16px;background:#0e0e22;border:1px solid #2a2a45;border-radius:10px;color:#e8e8f0;font-size:1rem;margin-bottom:18px;outline:none;box-sizing:border-box;"
-    />
-
-    <button class="btn btn-fire"  id="btn-fire"  onclick="joinAs('host')">
-      🔥 Play as Fireboy
-    </button>
-    <button class="btn btn-water" id="btn-water" onclick="joinAs('guest')">
-      💧 Play as Watergirl
-    </button>
+    <div id="room-section"></div>
 
     <div class="status">
       <div class="dot" id="sdot"></div>
-      <span id="stext">Choose a character to find a match</span>
+      <span id="stext">Create a room or join via link</span>
     </div>
 
     <div class="keys-guide">
       <div class="col fire-col">
-        <div class="col-name">🔥 Fireboy</div>
-        <div><kbd>←</kbd> <kbd>→</kbd> move</div>
-        <div style="margin-top:4px"><kbd>↑</kbd> jump</div>
+        <div class="col-name">&#x1F525; Fireboy</div>
+        <div><kbd>&larr;</kbd> <kbd>&rarr;</kbd> move &nbsp; <kbd>&uarr;</kbd> jump</div>
       </div>
       <div class="col water-col">
-        <div class="col-name">💧 Watergirl</div>
-        <div><kbd>A</kbd> <kbd>D</kbd> move</div>
-        <div style="margin-top:4px"><kbd>W</kbd> jump</div>
+        <div class="col-name">&#x1F4A7; Watergirl</div>
+        <div><kbd>A</kbd> <kbd>D</kbd> move &nbsp; <kbd>W</kbd> jump</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ══ Game area ══════════════════════════════════════════════════════════ -->
 <div id="arena">
   <div id="topbar">
-    <span id="role-label">—</span>
-    <span id="p2p-badge">Connecting P2P…</span>
+    <span id="role-label">&#8212;</span>
+    <span id="p2p-badge">Connecting P2P&hellip;</span>
   </div>
-  <iframe id="game-frame" src="about:blank" allowfullscreen
-          allow="autoplay"></iframe>
+  <iframe id="game-frame" src="about:blank" allowfullscreen allow="autoplay"></iframe>
 </div>
 
 <script>
-  // ── Config ──────────────────────────────────────────────────────────────
-  // Proxy through same-origin to avoid mixed-content (Railway = HTTPS)
-  const API     = "";
-  const API_KEY = "";
-  const GAME_ID = "fireboy-watergirl";
+  const GAME_ID_PREFIX = "fw-room-";
 
-  // ── State ────────────────────────────────────────────────────────────────
-  let myRole   = null;   // "host" | "guest"
-  let myName   = null;
-  let ticketId = null;
-  let lobbyWs  = null;
+  let myRole  = null;
+  let myName  = "Player";
+  let roomId  = null;
+  let lobbyWs = null;
 
-  // ── UI helpers ───────────────────────────────────────────────────────────
+  function genRoomId() {
+    return Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
+  function getRoomFromUrl() {
+    return new URLSearchParams(location.search).get("room");
+  }
+
+  function buildRoomUrl(rid) {
+    return location.origin + location.pathname + "?room=" + rid;
+  }
+
   function setStatus(msg, state) {
     document.getElementById("stext").textContent = msg;
-    document.getElementById("sdot").className = "dot " + (state || "");
+    document.getElementById("sdot").className    = "dot " + (state || "");
   }
 
   function lock() {
-    document.getElementById("btn-fire").disabled  = true;
-    document.getElementById("btn-water").disabled = true;
+    ["btn-fire","btn-water","btn-create"].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
   }
 
-  // ── Matchmaking ──────────────────────────────────────────────────────────
+  // ── Init room UI ────────────────────────────────────────────────────────────
+  (function initUI() {
+    var existing = getRoomFromUrl();
+    var sec = document.getElementById("room-section");
+
+    if (existing) {
+      roomId = existing;
+      sec.innerHTML =
+        '<div class="divider">Room <strong style="color:#9090c0">' + existing + '</strong></div>' +
+        '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')">&#x1F525; Play as Fireboy</button>' +
+        '<button class="btn btn-water" id="btn-water" onclick="joinAs(\'guest\')">&#x1F4A7; Play as Watergirl</button>';
+      setStatus("Choose your character to join", "");
+    } else {
+      sec.innerHTML =
+        '<button class="btn btn-room" id="btn-create" onclick="createRoom()">+ Create Room</button>' +
+        '<div id="room-box">' +
+          '<div class="room-label">Share this link with your friend:</div>' +
+          '<div class="room-link-row"><div id="room-url"></div><button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
+        '</div>' +
+        '<div class="divider" id="char-divider" style="display:none">choose your character</div>' +
+        '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')"  style="display:none">&#x1F525; Play as Fireboy</button>' +
+        '<button class="btn btn-water" id="btn-water" onclick="joinAs(\'guest\')" style="display:none">&#x1F4A7; Play as Watergirl</button>';
+    }
+  })();
+
+  function createRoom() {
+    roomId = genRoomId();
+    var link = buildRoomUrl(roomId);
+
+    document.getElementById("btn-create").style.display    = "none";
+    document.getElementById("room-box").style.display      = "block";
+    document.getElementById("room-url").textContent        = link;
+    document.getElementById("char-divider").style.display  = "flex";
+    document.getElementById("btn-fire").style.display      = "block";
+    document.getElementById("btn-water").style.display     = "block";
+
+    setStatus("Share the link, then pick your character", "amber");
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(buildRoomUrl(roomId)).then(function() {
+      var btn = document.getElementById("copy-btn");
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(function() { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+
+  // ── Join ────────────────────────────────────────────────────────────────────
   async function joinAs(role) {
+    if (!roomId) { setStatus("Create a room first", "red"); return; }
     lock();
     myRole = role;
-    const char     = role === "host" ? "fireboy" : "watergirl";
-    const nameInput = document.getElementById("player-name").value.trim();
-    myName = nameInput || (role === "host" ? "Fireboy" : "Watergirl");
-    const playerId = encodeURIComponent(myName) + "-" + Math.random().toString(36).slice(2, 6);
+    var nameVal = document.getElementById("player-name").value.trim();
+    myName = nameVal || (role === "host" ? "Fireboy" : "Watergirl");
 
-    setStatus("Joining matchmaking queue…", "amber");
+    var safe = myName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "p";
+    var playerId = safe + "-" + Math.random().toString(36).slice(2, 6);
+    var gameId   = GAME_ID_PREFIX + roomId;
 
-    let res;
+    setStatus((role === "host" ? "Fireboy" : "Watergirl") + " — waiting for opponent…", "amber");
+
+    var res;
     try {
-      res = await fetch(`/vlv/v1/matchmaking/join`, {
-        method:  "POST",
+      res = await fetch("/vlv/v1/matchmaking/join", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player_id: playerId, game_id: GAME_ID }),
+        body: JSON.stringify({ player_id: playerId, game_id: gameId }),
       });
-    } catch (e) {
-      setStatus("VLV server unreachable: " + e.message, "red");
-      return;
-    }
+    } catch(e) { setStatus("Server unreachable: " + e.message, "red"); return; }
 
-    if (!res.ok) {
-      setStatus("Matchmaking failed (HTTP " + res.status + ")", "red");
-      return;
-    }
+    if (!res.ok) { setStatus("Matchmaking error: HTTP " + res.status, "red"); return; }
 
-    const data = await res.json();
-    ticketId = data.ticket_id;
-    const charLabel = role === "host" ? "🔥 Fireboy" : "💧 Watergirl";
-    setStatus(`${charLabel} — waiting for opponent…`, "amber");
-
-    openLobbyWs(ticketId);
+    var data = await res.json();
+    openLobbyWs(data.ticket_id);
   }
 
-  // ── Lobby WebSocket ───────────────────────────────────────────────────────
+  // ── Lobby WS ────────────────────────────────────────────────────────────────
   function openLobbyWs(tid) {
-    // Use same-origin WS proxy to avoid mixed-content on HTTPS hosts
-    const wsBase = location.protocol === "https:" ? "wss://" : "ws://";
-    lobbyWs = new WebSocket(`${wsBase}${location.host}/ws-lobby?ticket=${tid}`);
-
-    lobbyWs.onmessage = (e) => {
-      let msg; try { msg = JSON.parse(e.data); } catch { return; }
+    var wsBase = location.protocol === "https:" ? "wss" : "ws";
+    lobbyWs = new WebSocket(wsBase + "://" + location.host + "/ws-lobby?ticket=" + tid);
+    lobbyWs.onmessage = function(e) {
+      var msg; try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === "matched") {
         lobbyWs.close();
         setStatus("Opponent found! Loading game…", "green");
-        setTimeout(() => launchGame(msg.token), 600);
+        setTimeout(function() { launchGame(msg.token); }, 500);
       }
     };
-
-    lobbyWs.onerror = () => setStatus("Lobby connection error", "red");
+    lobbyWs.onerror = function() { setStatus("Connection error", "red"); };
   }
 
-  // ── Game launch ───────────────────────────────────────────────────────────
+  // ── Launch ──────────────────────────────────────────────────────────────────
   function launchGame(token) {
     document.getElementById("lobby").style.display = "none";
     document.getElementById("arena").style.display = "flex";
 
-    const roleLabel = myRole === "host"
-      ? "🔥 You are Fireboy  ·  ← → move  ·  ↑ jump"
-      : "💧 You are Watergirl  ·  A D move  ·  W jump";
-    document.getElementById("role-label").textContent = roleLabel;
+    document.getElementById("role-label").textContent = myRole === "host"
+      ? "🔥 " + myName + "  ·  ← → move  ·  ↑ jump"
+      : "💧 " + myName + "  ·  A D move  ·  W jump";
 
-    // Build iframe URL — vlv-mp.js auto-inits from URL params
-    const gameUrl = new URL("./public/game/index.html", location.href);
+    var gameUrl = new URL("./public/game/index.html", location.href);
     gameUrl.searchParams.set("vlv",   "1");
     gameUrl.searchParams.set("role",  myRole);
     gameUrl.searchParams.set("token", token);
     gameUrl.searchParams.set("name",  encodeURIComponent(myName));
 
-    const frame = document.getElementById("game-frame");
-    frame.src = gameUrl.toString();
+    document.getElementById("game-frame").src = gameUrl.toString();
   }
 
-  // ── Listen for P2P events from iframe ───────────────────────────────────
-  window.addEventListener("message", (e) => {
+  // ── P2P badge ────────────────────────────────────────────────────────────────
+  window.addEventListener("message", function(e) {
     if (!e.data || e.data.vlv == null) return;
-    const badge = document.getElementById("p2p-badge");
+    var badge = document.getElementById("p2p-badge");
     if (e.data.vlv === "connected") {
       badge.textContent = "P2P Connected ✓";
       badge.className   = "ok";
