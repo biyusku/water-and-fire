@@ -350,6 +350,7 @@ function launchGame(gameId, role) {
   // Pass name and role so the game's online.html can pre-fill and auto-start
   url.searchParams.set("name", encodeURIComponent(myName));
   url.searchParams.set("autostart", role);   // "host" | "guest"
+  url.searchParams.set("room", roomCode);    // shared room ID → same game_id in matchmaking
   window.location.href = url.toString();
 }
 
