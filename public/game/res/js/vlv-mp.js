@@ -166,12 +166,15 @@
       }
     };
 
-    if (ROLE === "host") {
-      dc = pc.createDataChannel("g", { ordered: false, maxRetransmits: 0 });
-      wireChannel(dc);
-    } else {
-      pc.ondatachannel = ({ channel }) => { dc = channel; wireChannel(dc); };
-    }
+    // DataChannel is created by the offerer (sigRole), not by lobby role.
+    // We always set ondatachannel in case we end up as answerer.
+    pc.ondatachannel = ({ channel }) => { dc = channel; wireChannel(dc); };
+  }
+
+  function setupDataChannel() {
+    // Called after sigRole is known and we are offerer
+    dc = pc.createDataChannel("g", { ordered: false, maxRetransmits: 0 });
+    wireChannel(dc);
   }
 
   function wireChannel(ch) {
@@ -201,7 +204,11 @@
     if (m.type === "role") {
       sigRole = m.role;
       log("sig role:", sigRole);
-      if (sigRole === "offerer") setTimeout(makeOffer, 800);
+      if (sigRole === "offerer") {
+        // Offerer creates DataChannel then makes offer
+        setupDataChannel();
+        setTimeout(makeOffer, 800);
+      }
       return;
     }
 
