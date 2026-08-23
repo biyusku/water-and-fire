@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tank Battle — Online</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#1a1a2e;color:#e0e0ff;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .logo{font-size:2rem;font-weight:800;letter-spacing:1px;margin-bottom:4px;color:#e0e0ff;}
+    .logo span{color:#ff6b35;}
+    .tagline{color:#555;font-size:0.85rem;margin-bottom:28px;}
+    .card{background:#12122a;border:1px solid #1e1e40;border-radius:16px;padding:28px 32px;width:min(420px,96vw);}
+    .card-title{font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:8px;}
+    input{width:100%;background:#0e0e22;border:1px solid #1e1e40;border-radius:8px;padding:10px 14px;color:#e0e0ff;font-size:1rem;outline:none;margin-bottom:18px;}
+    input:focus{border-color:#ff6b35;}
+    .divider{text-align:center;color:#444;font-size:0.78rem;letter-spacing:1px;text-transform:uppercase;margin:14px 0 10px;}
+    .btn{width:100%;padding:12px;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:10px;}
+    .btn:disabled{opacity:.4;cursor:not-allowed;}
+    .btn-red{background:linear-gradient(135deg,#ff6b35,#cc3300);color:#fff;}
+    .btn-blue{background:linear-gradient(135deg,#4fc3f7,#0288d1);color:#fff;}
+    .room-label{font-size:0.75rem;color:#555;margin-bottom:6px;}
+    .room-link-row{display:flex;gap:8px;align-items:center;}
+    #room-url{flex:1;background:#0e0e22;border:1px solid #1e1e40;border-radius:8px;padding:8px 10px;color:#9090c0;font-family:monospace;font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #copy-btn{background:#252545;border:none;border-radius:6px;color:#aaa;padding:8px 12px;cursor:pointer;font-size:0.8rem;white-space:nowrap;flex-shrink:0;}
+    #copy-btn:hover{background:#333360;} #copy-btn.copied{color:#4caf50;}
+    .status{margin-top:16px;display:flex;align-items:center;gap:10px;background:#0e0e22;border-radius:10px;padding:12px 16px;font-size:0.84rem;color:#777;min-height:46px;}
+    .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:#333;}
+    .dot.amber{background:#ff9800;animation:blink 1.1s infinite;}
+    .dot.green{background:#4caf50;}.dot.red{background:#f44336;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+    .keys-guide{margin-top:24px;display:flex;justify-content:space-around;font-size:0.79rem;color:#555;}
+    .keys-guide .col{text-align:center;line-height:1.8;}
+    .keys-guide .col-name{font-weight:700;margin-bottom:5px;font-size:0.87rem;}
+    .red-col .col-name{color:#ff6b35;}.blue-col .col-name{color:#4fc3f7;}
+    kbd{background:#1f1f3a;border:1px solid #333;border-radius:4px;padding:1px 7px;font-family:monospace;font-size:0.8rem;color:#ccc;}
+    #arena{display:none;flex-direction:column;align-items:center;width:100%;height:100vh;}
+    #topbar{width:100%;display:flex;align-items:center;justify-content:space-between;padding:6px 18px;background:#14142a;border-bottom:1px solid #1e1e40;flex-shrink:0;}
+    #role-label{font-size:0.9rem;font-weight:600;}
+    #p2p-badge{font-size:0.78rem;font-weight:700;padding:4px 14px;border-radius:20px;background:#ff9800;color:#fff;}
+    #p2p-badge.ok{background:#4caf50;} #p2p-badge.lost{background:#f44336;}
+    #game-frame{flex:1;width:100%;border:none;display:block;background:#000;}
+  </style>
+</head>
+<body>
+
+<div id="lobby">
+  <div class="logo">Tank <span>Battle</span></div>
+  <div class="tagline">Online 1v1 &middot; powered by VLV</div>
+  <div class="card">
+    <div class="card-title">Your name</div>
+    <input type="text" id="player-name" placeholder="Enter your name&hellip;" maxlength="16" autocomplete="off" spellcheck="false" />
+    <div id="room-section"></div>
+    <div class="status">
+      <div class="dot" id="sdot"></div>
+      <span id="stext">Pick a team to start</span>
+    </div>
+    <div class="keys-guide">
+      <div class="col red-col">
+        <div class="col-name">🔴 Red Tank</div>
+        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</div>
+        <div><kbd>F</kbd> shoot</div>
+      </div>
+      <div class="col blue-col">
+        <div class="col-name">🔵 Blue Tank</div>
+        <div><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> move</div>
+        <div><kbd>L</kbd> shoot</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="arena">
+  <div id="topbar">
+    <span id="role-label">—</span>
+    <span id="p2p-badge">Connecting P2P…</span>
+  </div>
+  <iframe id="game-frame" src="about:blank" allowfullscreen allow="autoplay"></iframe>
+</div>
+
+<script>
+  var GAME_ID_PREFIX = "tank-room-";
+  var myRole = null, myName = "Player", roomId = null, lobbyWs = null;
+
+  function genRoomId() { return Math.random().toString(36).slice(2,8).toUpperCase(); }
+  function getRoomFromUrl() { return new URLSearchParams(location.search).get("room"); }
+  function getTakenFromUrl() { return new URLSearchParams(location.search).get("taken"); }
+  function buildRoomUrl(rid, taken) {
+    return location.origin + location.pathname + "?room=" + rid + (taken ? "&taken=" + taken : "");
+  }
+  function setStatus(msg, state) {
+    document.getElementById("stext").textContent = msg;
+    document.getElementById("sdot").className = "dot " + (state||"");
+  }
+  function lock() {
+    ["btn-red","btn-blue"].forEach(function(id){ var el=document.getElementById(id); if(el) el.disabled=true; });
+  }
+
+  (function initUI() {
+    var rid = getRoomFromUrl(), taken = getTakenFromUrl();
+    var sec = document.getElementById("room-section");
+    if (rid) {
+      roomId = rid;
+      var showRed  = (taken !== "host");
+      var showBlue = (taken !== "guest");
+      var html = '<div class="divider">Room <strong style="color:#9090c0">' + rid + '</strong></div>';
+      if (showRed)  html += '<button class="btn btn-red"  id="btn-red"  onclick="joinAs(\'host\')">🔴 Play as Red Tank</button>';
+      if (showBlue) html += '<button class="btn btn-blue" id="btn-blue" onclick="joinAs(\'guest\')">🔵 Play as Blue Tank</button>';
+      sec.innerHTML = html;
+      setStatus(taken ? (taken==="host"?"Red":"Blue")+" taken — join as the other" : "Choose your tank", "");
+    } else {
+      sec.innerHTML =
+        '<div class="divider">create a room</div>' +
+        '<button class="btn btn-red"  id="btn-red"  onclick="joinAs(\'host\')">🔴 Play as Red Tank</button>' +
+        '<button class="btn btn-blue" id="btn-blue" onclick="joinAs(\'guest\')">🔵 Play as Blue Tank</button>' +
+        '<div id="room-box" style="display:none">' +
+          '<div class="room-label">Share this link:</div>' +
+          '<div class="room-link-row"><div id="room-url"></div>' +
+          '<button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
+        '</div>';
+    }
+  })();
+
+  function copyLink() {
+    navigator.clipboard.writeText(buildRoomUrl(roomId, myRole)).then(function() {
+      var btn = document.getElementById("copy-btn");
+      btn.textContent="Copied!"; btn.classList.add("copied");
+      setTimeout(function(){ btn.textContent="Copy"; btn.classList.remove("copied"); },2000);
+    });
+  }
+
+  async function joinAs(role) {
+    if (!roomId) roomId = genRoomId();
+    lock();
+    myRole = role;
+    var nameVal = document.getElementById("player-name").value.trim();
+    myName = nameVal || (role==="host" ? "Red" : "Blue");
+
+    var roomBox = document.getElementById("room-box");
+    var roomUrlEl = document.getElementById("room-url");
+    if (roomBox) roomBox.style.display = "block";
+    if (roomUrlEl) roomUrlEl.textContent = buildRoomUrl(roomId, role);
+
+    document.getElementById("stext").innerHTML =
+      (role==="host"?"🔴 Red":"🔵 Blue") + " — waiting for opponent…";
+
+    var safe = myName.replace(/[^a-zA-Z0-9]/g,"").slice(0,12)||"p";
+    var playerId = (role==="host"?"h-":"g-") + safe + "-" + Math.random().toString(36).slice(2,6);
+    var gameId = GAME_ID_PREFIX + roomId;
+
+    var res;
+    try {
+      res = await fetch("https://vlvapi.rusk.agency/v1/matchmaking/join", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","X-VLV-API-Key":"254db297e6a785d586e237f5366dc722"},
+        body: JSON.stringify({player_id: playerId, game_id: gameId}),
+      });
+    } catch(e) { setStatus("Server unreachable: "+e.message,"red"); return; }
+    if (!res.ok) { setStatus("Matchmaking error: HTTP "+res.status,"red"); return; }
+
+    var data = await res.json();
+    openLobbyWs(data.ticket_id);
+  }
+
+  function openLobbyWs(tid) {
+    lobbyWs = new WebSocket("wss://vlvlobby.rusk.agency/lobby?ticket="+tid);
+    lobbyWs.onmessage = function(e) {
+      var msg; try { msg=JSON.parse(e.data); } catch { return; }
+      if (msg.type==="matched") {
+        lobbyWs.close();
+        setStatus("Opponent found! Loading game…","green");
+        setTimeout(function(){ launchGame(msg.token); }, 500);
+      }
+    };
+    lobbyWs.onerror = function(){ setStatus("Connection error","red"); };
+  }
+
+  function launchGame(token) {
+    document.getElementById("lobby").style.display = "none";
+    document.getElementById("arena").style.display = "flex";
+    document.getElementById("role-label").textContent =
+      myRole==="host" ? "🔴 " + myName + "  ·  WASD move  ·  F shoot"
+                      : "🔵 " + myName + "  ·  Arrow keys  ·  L shoot";
+
+    var gameUrl = new URL("./game.html", location.href);
+    gameUrl.searchParams.set("vlv",   "1");
+    gameUrl.searchParams.set("role",  myRole);
+    gameUrl.searchParams.set("token", token);
+    gameUrl.searchParams.set("name",  encodeURIComponent(myName));
+    gameUrl.searchParams.set("seed",  String(Math.floor(Math.random()*99991)));
+    document.getElementById("game-frame").src = gameUrl.toString();
+  }
+
+  window.addEventListener("message", function(e) {
+    if (!e.data||e.data.vlv==null) return;
+    var badge = document.getElementById("p2p-badge");
+    if (e.data.vlv==="connected")    { badge.textContent="P2P Connected ✓"; badge.className="ok"; }
+    if (e.data.vlv==="disconnected") { badge.textContent="Peer disconnected"; badge.className="lost"; }
+  });
+</script>
+</body>
+</html>

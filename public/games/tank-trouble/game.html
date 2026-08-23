@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tank Battle</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden;}
+    canvas{display:block;image-rendering:pixelated;}
+    #hud{position:fixed;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:32px;font-family:monospace;font-size:14px;color:#fff;background:rgba(0,0,0,.5);padding:6px 18px;border-radius:20px;z-index:10;}
+    .p1c{color:#ff6b35;}.p2c{color:#4fc3f7;}
+    #msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:monospace;font-size:2rem;font-weight:700;color:#fff;text-shadow:0 2px 16px #000;text-align:center;display:none;z-index:20;background:rgba(0,0,0,.7);padding:20px 36px;border-radius:16px;}
+    #p2p-status{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-family:monospace;font-size:11px;color:#555;background:rgba(0,0,0,.4);padding:3px 12px;border-radius:10px;}
+  </style>
+</head>
+<body>
+<div id="hud">
+  <span class="p1c">🔴 P1: <span id="s1">0</span></span>
+  <span style="color:#666">|</span>
+  <span class="p2c">🔵 P2: <span id="s2">0</span></span>
+</div>
+<canvas id="c"></canvas>
+<div id="msg"></div>
+<div id="p2p-status" id="p2p">Connecting…</div>
+<script src="game.js"></script>
+</body>
+</html>
