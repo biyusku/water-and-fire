@@ -85,7 +85,7 @@
 
   // Sprite width ~40px, height ~56px — center X, draw above head
   const SPRITE_W = 40;
-  const ABOVE    = 20;  // px above top of sprite
+  const ABOVE    = 75;  // px above top of sprite
 
   function drawNames() {
     const c = getCtx();
