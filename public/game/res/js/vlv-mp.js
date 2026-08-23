@@ -306,6 +306,15 @@
       log("remote name:", remoteName);
       return;
     }
+    if (m.t === "next_level") {
+      log("host triggered next level — auto-continuing");
+      // Find and click the continue button in the won menu
+      const btns = window.menuButtons;
+      if (btns && btns.won && btns.won.continue) {
+        btns.won.continue.run();
+      }
+      return;
+    }
     if (m.t !== "s") return;
     const r = getRemote();
     if (!r) return;
@@ -324,11 +333,32 @@
     try { window.parent.postMessage({ vlv: ev }, "*"); } catch {}
   }
 
+  // ── level sync (host → guest) ────────────────────────────────────────────────
+  function hookContinueButton() {
+    // Wait until menuButtons is populated by the game, then patch it
+    const interval = setInterval(() => {
+      const btns = window.menuButtons;
+      if (!btns || !btns.won || !btns.won.continue) return;
+      clearInterval(interval);
+      if (ROLE !== "host") return; // only host sends next_level
+      const orig = btns.won.continue.runCode.bind(btns.won.continue);
+      btns.won.continue.runCode = function () {
+        // Send to guest first, then run locally
+        if (dc && dc.readyState === "open") {
+          try { dc.send(JSON.stringify({ t: "next_level" })); } catch {}
+        }
+        orig();
+      };
+      log("continue button hooked ✓");
+    }, 200);
+  }
+
   // ── boot ─────────────────────────────────────────────────────────────────────
   log(`role=${ROLE} name="${MY_NAME}" booting…`);
   pollLockKeys();
   buildPC();
   openSignaling();
   startNameLoop();
+  hookContinueButton();
 
 })();
