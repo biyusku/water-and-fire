@@ -25,9 +25,9 @@
   if (!ROLE || !TOKEN) { console.warn("[VLV-MP] missing params"); return; }
 
   const SYNC_MS  = 50;  // 20 Hz
-  // Always connect directly to VLV signaling (bypass Railway WS proxy)
-  // Railway WS proxy was not relaying messages between peers correctly
-  const SIG_URL = `ws://213.146.184.56:8080/ws?token=${encodeURIComponent(TOKEN)}`;
+  // Connect via nginx WSS proxy on port 443 (self-signed, bypass mixed content)
+  // wss://IP works from HTTPS pages; nginx proxies to ws://127.0.0.1:8080
+  const SIG_URL = `wss://213.146.184.56/ws?token=${encodeURIComponent(TOKEN)}`;
 
   const ICE_CFG = {
     iceServers: [

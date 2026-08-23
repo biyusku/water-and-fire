@@ -213,7 +213,7 @@
 
     var res;
     try {
-      res = await fetch("/vlv/v1/matchmaking/join", {
+      res = await fetch("https://213.146.184.56/v1/matchmaking/join", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({player_id: playerId, game_id: gameId}),
@@ -228,8 +228,8 @@
 
   // ── Lobby WS ────────────────────────────────────────────────────────────────
   function openLobbyWs(tid) {
-    var wsBase = location.protocol==="https:" ? "wss" : "ws";
-    lobbyWs = new WebSocket(wsBase+"://"+location.host+"/ws-lobby?ticket="+tid);
+    // Use nginx WSS proxy directly (bypasses Railway proxy issues)
+    lobbyWs = new WebSocket("wss://213.146.184.56/lobby?ticket="+tid);
     lobbyWs.onmessage = function(e) {
       var msg; try { msg=JSON.parse(e.data); } catch { return; }
       if (msg.type==="matched") {
