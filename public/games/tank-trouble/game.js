@@ -4,7 +4,7 @@
  *
  * Controls:
  *   P1 (Red):   W/A/S/D + F to shoot
- *   P2 (Blue):  ↑/←/↓/→ + L to shoot   (local fallback)
+ *   P2 (Blue):  Arrow keys + L to shoot  (local fallback)
  *   In VLV online mode: each player controls their own tank only
  */
 
@@ -15,16 +15,15 @@
   const canvas = document.getElementById("c");
   const ctx    = canvas.getContext("2d");
 
-  const CELL   = 48;
-  const COLS   = 15;
-  const ROWS   = 11;
-  const W      = CELL * COLS;
-  const H      = CELL * ROWS;
+  const CELL = 48;
+  const COLS = 15;
+  const ROWS = 11;
+  const W    = CELL * COLS;
+  const H    = CELL * ROWS;
 
   canvas.width  = W;
   canvas.height = H;
 
-  // Scale to fit viewport
   function resize() {
     const scaleX = window.innerWidth  / W;
     const scaleY = window.innerHeight / H;
@@ -38,53 +37,50 @@
   // ── VLV / URL params ─────────────────────────────────────────────────────────
   const params  = new URLSearchParams(location.search);
   const VLV_ON  = params.get("vlv") === "1";
-  const MY_ROLE = params.get("role") || null;   // "host" | "guest"
+  const MY_ROLE = params.get("role") || null;
   const TOKEN   = params.get("token") || null;
   const MY_NAME = decodeURIComponent(params.get("name") || (MY_ROLE === "host" ? "Red" : "Blue"));
+  const MY_IDX  = VLV_ON ? (MY_ROLE === "host" ? 0 : 1) : -1;
 
-  // In VLV mode: host = tank 0 (red), guest = tank 1 (blue)
-  const MY_IDX  = VLV_ON ? (MY_ROLE === "host" ? 0 : 1) : -1;  // -1 = local 2P
-
-  // ── Maze generation ─────────────────────────────────────────────────────────
-  // walls[row][col] = { right: bool, bottom: bool }
-  // We generate once and share the seed so both clients get identical mazes.
-  let SEED = parseInt(params.get("seed") || "0") || (Date.now() % 99991);
+  // ── Maze generation ──────────────────────────────────────────────────────────
+  let SEED = parseInt(params.get("seed") || "0") || ((Date.now() % 99991) + 1);
 
   function seededRand(s) {
-    // Simple LCG
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return { val: (s >>> 0) / 0x100000000, next: s };
+    s = ((s * 1664525 + 1013904223) | 0) >>> 0;
+    return { val: s / 0x100000000, next: s };
   }
 
   function generateMaze(seed) {
-    // Recursive backtracker
     const visited = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
     const walls   = Array.from({ length: ROWS }, () =>
       Array.from({ length: COLS }, () => ({ right: true, bottom: true }))
     );
 
-    let s = seed;
+    let s = seed >>> 0;
+
     function rand4() {
       const dirs = [0, 1, 2, 3];
       for (let i = 3; i > 0; i--) {
         const r = seededRand(s); s = r.next;
         const j = Math.floor(r.val * (i + 1));
-        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+        const tmp = dirs[i]; dirs[i] = dirs[j]; dirs[j] = tmp;
       }
       return dirs;
     }
 
     function carve(r, c) {
       visited[r][c] = true;
+      const DR = [-1, 0, 1, 0];
+      const DC = [0, 1, 0, -1];
       for (const d of rand4()) {
-        const nr = r + [−1, 0, 1, 0][d];
-        const nc = c + [0, 1, 0, −1][d];
+        const nr = r + DR[d];
+        const nc = c + DC[d];
         if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
         if (visited[nr][nc]) continue;
-        if (d === 0) walls[r - 1][c].bottom = false;   // up: remove bottom wall of cell above
-        else if (d === 1) walls[r][c].right = false;    // right
-        else if (d === 2) walls[r][c].bottom = false;   // down
-        else               walls[r][c - 1].right = false; // left
+        if (d === 0) walls[r - 1][c].bottom = false;
+        else if (d === 1) walls[r][c].right = false;
+        else if (d === 2) walls[r][c].bottom = false;
+        else walls[r][c - 1].right = false;
         carve(nr, nc);
       }
     }
@@ -94,72 +90,53 @@
 
   let walls = generateMaze(SEED);
 
-  // ── Colours ──────────────────────────────────────────────────────────────────
+  // ── Colors ───────────────────────────────────────────────────────────────────
   const COLORS = ["#ff6b35", "#4fc3f7"];
   const DARK   = ["#cc4400", "#0288d1"];
-  const BG     = "#2a2a2a";
-  const WALL_C = "#111";
-  const FLOOR  = "#3a3a3a";
+  const FLOOR_A = "#3e3e3e";
+  const FLOOR_B = "#363636";
+  const WALL_C  = "#111";
 
-  // ── Tank state ───────────────────────────────────────────────────────────────
-  const TANK_R  = 14;   // radius px
-  const SPEED   = 2.2;
-  const TURN    = 0.045;
-  const BULLET_SPEED = 5;
+  // ── Tank constants ────────────────────────────────────────────────────────────
+  const TANK_R       = 14;
+  const SPEED        = 2.2;
+  const TURN_SPEED   = 0.045;
+  const BULLET_SPD   = 5;
   const MAX_BOUNCES  = 4;
-  const SHOOT_CD     = 500; // ms
+  const SHOOT_CD_MS  = 500;
 
   function spawnPos(idx) {
-    // Player 0: top-left area, Player 1: bottom-right area
     if (idx === 0) return { x: CELL * 1.5, y: CELL * 1.5, angle: 0 };
     return { x: CELL * (COLS - 1.5), y: CELL * (ROWS - 1.5), angle: Math.PI };
   }
 
   function makeTank(idx) {
     const p = spawnPos(idx);
-    return {
-      idx,
-      x: p.x, y: p.y,
-      angle: p.angle,
-      alive: true,
-      lastShot: 0,
-      score: 0,
-      name: idx === MY_IDX ? MY_NAME : (idx === 0 ? "Red" : "Blue"),
-    };
+    return { idx, x: p.x, y: p.y, angle: p.angle, alive: true, lastShot: 0,
+             name: (idx === MY_IDX ? MY_NAME : (idx === 0 ? "Red" : "Blue")) };
   }
 
-  let tanks = [makeTank(0), makeTank(1)];
+  let tanks   = [makeTank(0), makeTank(1)];
   let bullets = [];
   let scores  = [0, 0];
   let gameOver = false;
-  let roundWinner = -1;
 
-  // ── Input ────────────────────────────────────────────────────────────────────
+  // ── Input ─────────────────────────────────────────────────────────────────────
   const keys = {};
-  window.addEventListener("keydown", e => { keys[e.code] = true;  });
+  window.addEventListener("keydown", e => { keys[e.code] = true; });
   window.addEventListener("keyup",   e => { keys[e.code] = false; });
 
-  // Local bindings (2P on one keyboard, or single-player fallback)
   const BINDS = [
-    { up: "KeyW", left: "KeyA", down: "KeyS", right: "KeyD", fire: "KeyF" },
-    { up: "ArrowUp", left: "ArrowLeft", down: "ArrowDown", right: "ArrowRight", fire: "KeyL" },
+    { left: "KeyA", right: "KeyD", up: "KeyW", fire: "KeyF" },
+    { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", fire: "KeyL" },
   ];
 
-  // ── Wall collision helpers ───────────────────────────────────────────────────
-  function cellAt(x, y) {
-    return {
-      col: Math.floor(x / CELL),
-      row: Math.floor(y / CELL),
-    };
-  }
-
-  function hasWallBetween(x1, y1, x2, y2) {
-    // Simple AABB wall check for tank movement
-    const r = TANK_R - 2;
-    // Check 4 corners of tank
+  // ── Wall collision ────────────────────────────────────────────────────────────
+  function collidesWithWall(nx, ny) {
+    const r = TANK_R - 3;
     for (const dx of [-r, r]) {
       for (const dy of [-r, r]) {
-        const cx = x2 + dx, cy = y2 + dy;
+        const cx = nx + dx, cy = ny + dy;
         const col = Math.floor(cx / CELL);
         const row = Math.floor(cy / CELL);
         if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return true;
@@ -173,33 +150,34 @@
     const nx = b.x + b.vx;
     const ny = b.y + b.vy;
 
-    // Bounce off canvas edges
+    // Canvas border bounce
     if (nx < 4 || nx > W - 4) { b.vx = -b.vx; b.bounces++; }
     if (ny < 4 || ny > H - 4) { b.vy = -b.vy; b.bounces++; }
 
-    // Bounce off walls (check x and y separately)
-    const col  = Math.floor(b.x / CELL);
-    const row  = Math.floor(b.y / CELL);
+    const col = Math.floor(b.x / CELL);
+    const row = Math.floor(b.y / CELL);
 
-    // Moving right: check right wall of current cell
-    if (b.vx > 0 && col < COLS - 1 && walls[row][col].right) {
-      const wallX = (col + 1) * CELL;
-      if (b.x < wallX && nx >= wallX) { b.vx = -b.vx; b.bounces++; }
-    }
-    // Moving left: check right wall of cell to the left
-    if (b.vx < 0 && col > 0 && walls[row][col - 1].right) {
-      const wallX = col * CELL;
-      if (b.x > wallX && nx <= wallX) { b.vx = -b.vx; b.bounces++; }
-    }
-    // Moving down: check bottom wall
-    if (b.vy > 0 && row < ROWS - 1 && walls[row][col].bottom) {
-      const wallY = (row + 1) * CELL;
-      if (b.y < wallY && ny >= wallY) { b.vy = -b.vy; b.bounces++; }
-    }
-    // Moving up: check bottom wall of row above
-    if (b.vy < 0 && row > 0 && walls[row - 1][col].bottom) {
-      const wallY = row * CELL;
-      if (b.y > wallY && ny <= wallY) { b.vy = -b.vy; b.bounces++; }
+    if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+      // Right wall
+      if (b.vx > 0 && col < COLS - 1 && walls[row][col].right) {
+        const wx = (col + 1) * CELL;
+        if (b.x < wx && nx >= wx) { b.vx = -b.vx; b.bounces++; }
+      }
+      // Left wall
+      if (b.vx < 0 && col > 0 && walls[row][col - 1].right) {
+        const wx = col * CELL;
+        if (b.x > wx && nx <= wx) { b.vx = -b.vx; b.bounces++; }
+      }
+      // Bottom wall
+      if (b.vy > 0 && row < ROWS - 1 && walls[row][col].bottom) {
+        const wy = (row + 1) * CELL;
+        if (b.y < wy && ny >= wy) { b.vy = -b.vy; b.bounces++; }
+      }
+      // Top wall (bottom of row above)
+      if (b.vy < 0 && row > 0 && walls[row - 1][col].bottom) {
+        const wy = row * CELL;
+        if (b.y > wy && ny <= wy) { b.vy = -b.vy; b.bounces++; }
+      }
     }
 
     b.x += b.vx;
@@ -211,120 +189,110 @@
     const t = tanks[tankIdx];
     if (!t.alive) return;
     const now = Date.now();
-    if (now - t.lastShot < SHOOT_CD) return;
+    if (now - t.lastShot < SHOOT_CD_MS) return;
     t.lastShot = now;
     bullets.push({
-      x:       t.x + Math.cos(t.angle) * (TANK_R + 4),
-      y:       t.y + Math.sin(t.angle) * (TANK_R + 4),
-      vx:      Math.cos(t.angle) * BULLET_SPEED,
-      vy:      Math.sin(t.angle) * BULLET_SPEED,
-      owner:   tankIdx,
+      x: t.x + Math.cos(t.angle) * (TANK_R + 5),
+      y: t.y + Math.sin(t.angle) * (TANK_R + 5),
+      vx: Math.cos(t.angle) * BULLET_SPD,
+      vy: Math.sin(t.angle) * BULLET_SPD,
+      owner: tankIdx,
       bounces: 0,
     });
   }
 
   // ── Round reset ───────────────────────────────────────────────────────────────
   function resetRound() {
-    const newSeed = (SEED * 6364136223846793005 + 1442695040888963407) % 99991;
-    SEED = Math.abs(newSeed) || 1;
+    SEED = (Math.abs(SEED * 1664525 + 1013904223) % 99991) + 1;
     walls = generateMaze(SEED);
-    tanks.forEach((t, i) => {
-      const p = spawnPos(i);
-      t.x = p.x; t.y = p.y; t.angle = p.angle; t.alive = true; t.lastShot = 0;
-    });
+    tanks = [makeTank(0), makeTank(1)];
     bullets = [];
     gameOver = false;
-    roundWinner = -1;
     document.getElementById("msg").style.display = "none";
   }
 
-  // ── Game logic ────────────────────────────────────────────────────────────────
-  let lastTime = 0;
-
+  // ── Update ────────────────────────────────────────────────────────────────────
   function update(now) {
     if (gameOver) return;
 
     tanks.forEach((t, idx) => {
       if (!t.alive) return;
 
-      // Determine control source
       let left = false, right = false, up = false, fire = false;
 
       if (!VLV_ON) {
-        // Local 2P
         const b = BINDS[idx];
         left  = !!keys[b.left];
         right = !!keys[b.right];
         up    = !!keys[b.up];
         fire  = !!keys[b.fire];
       } else if (idx === MY_IDX) {
-        // Online: control own tank
-        const b = BINDS[0];  // always use WASD+F for local player
+        const b = BINDS[0];
         left  = !!keys[b.left];
         right = !!keys[b.right];
         up    = !!keys[b.up];
         fire  = !!keys[b.fire];
       }
-      // else: remote tank, position is applied by VLV sync
+      // remote tank: position applied by VLV sync below
 
-      if (left)  t.angle -= TURN;
-      if (right) t.angle += TURN;
+      if (left)  t.angle -= TURN_SPEED;
+      if (right) t.angle += TURN_SPEED;
       if (up) {
         const nx = t.x + Math.cos(t.angle) * SPEED;
         const ny = t.y + Math.sin(t.angle) * SPEED;
-        if (!hasWallBetween(t.x, t.y, nx, ny)) { t.x = nx; t.y = ny; }
+        if (!collidesWithWall(nx, ny)) { t.x = nx; t.y = ny; }
       }
       if (fire) shoot(idx);
 
-      // Expose state for VLV sync
       if (VLV_ON && idx === MY_IDX) {
-        window.__vlvTankState = { x: t.x, y: t.y, angle: t.angle, fire: fire && (now - t.lastShot < 50) };
+        window.__vlvTankState = {
+          x: t.x, y: t.y, angle: t.angle,
+          fired: fire && (now - t.lastShot < 60),
+        };
       }
     });
 
-    // Move bullets
+    // Move bullets, remove expired
     bullets = bullets.filter(b => b.bounces <= MAX_BOUNCES);
     bullets.forEach(b => moveBullet(b));
 
     // Bullet-tank collision
-    bullets.forEach((b, bi) => {
-      tanks.forEach((t, ti) => {
-        if (!t.alive) return;
+    for (let bi = bullets.length - 1; bi >= 0; bi--) {
+      const b = bullets[bi];
+      for (let ti = 0; ti < tanks.length; ti++) {
+        const t = tanks[ti];
+        if (!t.alive) continue;
         const dx = b.x - t.x, dy = b.y - t.y;
-        if (dx * dx + dy * dy < (TANK_R + 4) * (TANK_R + 4)) {
+        if (dx * dx + dy * dy < (TANK_R + 5) * (TANK_R + 5)) {
           t.alive = false;
+          bullets.splice(bi, 1);
           const winner = 1 - ti;
           scores[winner]++;
-          document.getElementById("s" + (winner + 1) - 1).textContent = scores[0];
-          document.getElementById("s2").textContent = scores[1];
-          // Actually update score displays
           document.getElementById("s1").textContent = scores[0];
-          roundWinner = winner;
+          document.getElementById("s2").textContent = scores[1];
           gameOver = true;
-
           const msg = document.getElementById("msg");
-          msg.textContent = tanks[winner].name + " wins! 🎉\nPress Space / Enter to continue";
+          const wName = tanks[winner] ? tanks[winner].name : (winner === 0 ? "Red" : "Blue");
+          msg.textContent = wName + " wins! 🎉\nSpace / Enter → next round";
           msg.style.display = "block";
+          break;
         }
-      });
-    });
+      }
+      if (gameOver) break;
+    }
   }
 
-  // ── Draw ─────────────────────────────────────────────────────────────────────
+  // ── Draw ──────────────────────────────────────────────────────────────────────
   function draw() {
-    // Floor
-    ctx.fillStyle = FLOOR;
-    ctx.fillRect(0, 0, W, H);
-
-    // Draw cells (floor texture)
+    // Checkerboard floor
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        ctx.fillStyle = (r + c) % 2 === 0 ? "#3e3e3e" : "#363636";
+        ctx.fillStyle = (r + c) % 2 === 0 ? FLOOR_A : FLOOR_B;
         ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
       }
     }
 
-    // Draw walls
+    // Walls
     ctx.strokeStyle = WALL_C;
     ctx.lineWidth   = 4;
     ctx.lineCap     = "round";
@@ -351,17 +319,16 @@
     }
 
     // Bullets
+    ctx.shadowBlur = 0;
     bullets.forEach(b => {
       ctx.beginPath();
       ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
       ctx.fillStyle = COLORS[b.owner];
-      ctx.fill();
-      // Glow
-      ctx.shadowBlur  = 10;
+      ctx.shadowBlur  = 12;
       ctx.shadowColor = COLORS[b.owner];
       ctx.fill();
-      ctx.shadowBlur  = 0;
     });
+    ctx.shadowBlur = 0;
 
     // Tanks
     tanks.forEach(t => {
@@ -376,27 +343,27 @@
       ctx.roundRect(-TANK_R, -TANK_R, TANK_R * 2, TANK_R * 2, 4);
       ctx.fill();
 
-      // Darker top
+      // Inner panel
       ctx.fillStyle = DARK[t.idx];
       ctx.beginPath();
-      ctx.roundRect(-TANK_R + 4, -TANK_R + 4, TANK_R * 2 - 8, TANK_R * 2 - 8, 2);
+      ctx.roundRect(-TANK_R + 5, -TANK_R + 5, TANK_R * 2 - 10, TANK_R * 2 - 10, 2);
       ctx.fill();
 
       // Barrel
       ctx.fillStyle = DARK[t.idx];
-      ctx.fillRect(0, -4, TANK_R + 6, 8);
+      ctx.fillRect(2, -4, TANK_R + 6, 8);
 
       ctx.restore();
 
-      // Name tag
+      // Name tag above tank
       ctx.font         = "bold 11px monospace";
       ctx.textAlign    = "center";
       ctx.textBaseline = "bottom";
-      ctx.fillStyle    = "rgba(0,0,0,.6)";
       const tw = ctx.measureText(t.name).width + 8;
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
       ctx.fillRect(t.x - tw / 2, t.y - TANK_R - 20, tw, 15);
       ctx.fillStyle = COLORS[t.idx];
-      ctx.fillText(t.name, t.x, t.y - TANK_R - 7);
+      ctx.fillText(t.name, t.x, t.y - TANK_R - 6);
     });
   }
 
@@ -408,35 +375,37 @@
   }
   requestAnimationFrame(loop);
 
-  // ── Restart on Space/Enter ────────────────────────────────────────────────────
+  // Restart
   window.addEventListener("keydown", e => {
-    if (gameOver && (e.code === "Space" || e.code === "Enter")) {
-      resetRound();
-    }
+    if (gameOver && (e.code === "Space" || e.code === "Enter")) resetRound();
   });
 
   // ── VLV Multiplayer layer ─────────────────────────────────────────────────────
+  const p2pEl = document.getElementById("p2p-status");
+
   if (!VLV_ON) {
-    document.getElementById("p2p-status").textContent = "Local 2P mode";
+    p2pEl.textContent = "Local 2P: WASD+F  vs  Arrows+L";
     return;
   }
 
-  const SIG_URL = "wss://vlvsignal.rusk.agency/ws?token=" + encodeURIComponent(TOKEN);
-  const ICE_CFG = {
+  const SIG_URL   = "wss://vlvsignal.rusk.agency/ws?token=" + encodeURIComponent(TOKEN);
+  const ICE_CFG   = {
     iceServers: [
       { urls: "stun:213.146.184.56:3478" },
-      { urls: ["turn:213.146.184.56:3478?transport=udp", "turn:213.146.184.56:3478?transport=tcp"],
+      { urls: ["turn:213.146.184.56:3478?transport=udp",
+               "turn:213.146.184.56:3478?transport=tcp"],
         username: "vlv-demo", credential: "changeme-in-production" },
     ],
   };
-
   const REMOTE_IDX = MY_IDX === 0 ? 1 : 0;
+
   let pc = null, dc = null, sigWs = null;
   let sigRole = null, remoteDescSet = false, pendingICE = [];
-  let wsQueue = [];
-  let syncTimer = null;
+  let wsQueue = [], syncTimer = null;
 
-  const p2pEl = document.getElementById("p2p-status");
+  function notifyParent(ev) {
+    try { window.parent.postMessage({ vlv: ev }, "*"); } catch {}
+  }
 
   function buildPC() {
     pc = new RTCPeerConnection(ICE_CFG);
@@ -444,8 +413,9 @@
     pc.ondatachannel  = ({ channel }) => { dc = channel; wireChannel(dc); };
     pc.onconnectionstatechange = () => {
       p2pEl.textContent = "P2P: " + pc.connectionState;
-      if (pc.connectionState === "connected") notifyParent("connected");
-      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") notifyParent("disconnected");
+      if (pc.connectionState === "connected")   notifyParent("connected");
+      if (pc.connectionState === "failed" ||
+          pc.connectionState === "disconnected") notifyParent("disconnected");
     };
   }
 
@@ -454,26 +424,28 @@
     ch.onopen = () => {
       p2pEl.textContent = "P2P: connected ✓";
       notifyParent("connected");
-      // Send name
-      ch.send(JSON.stringify({ t: "name", name: MY_NAME }));
-      // Start sync
+      try { ch.send(JSON.stringify({ t: "name", name: MY_NAME })); } catch {}
       syncTimer = setInterval(() => {
         if (!dc || dc.readyState !== "open") return;
         const s = window.__vlvTankState;
         if (!s) return;
-        try { dc.send(JSON.stringify({ t: "s", x: s.x, y: s.y, a: s.angle, f: s.fire ? 1 : 0 })); } catch {}
+        try {
+          dc.send(JSON.stringify({
+            t: "s",
+            x: Math.round(s.x * 10) / 10,
+            y: Math.round(s.y * 10) / 10,
+            a: Math.round(s.angle * 1000) / 1000,
+            f: s.fired ? 1 : 0,
+          }));
+        } catch {}
       }, 50);
     };
-    ch.onmessage = ({ data }) => {
-      try { applyRemote(JSON.parse(data)); } catch {}
-    };
+    ch.onclose   = () => notifyParent("disconnected");
+    ch.onmessage = ({ data }) => { try { applyRemote(JSON.parse(data)); } catch {} };
   }
 
   function applyRemote(m) {
-    if (m.t === "name") {
-      tanks[REMOTE_IDX].name = m.name;
-      return;
-    }
+    if (m.t === "name") { tanks[REMOTE_IDX].name = m.name; return; }
     if (m.t !== "s") return;
     const rt = tanks[REMOTE_IDX];
     rt.x     = m.x;
@@ -520,20 +492,22 @@
       await pc.setRemoteDescription(new RTCSessionDescription(m));
       remoteDescSet = true; await drainICE();
     } else if (m.type === "ice" && m.candidate) {
-      if (remoteDescSet) { try { await pc.addIceCandidate(new RTCIceCandidate(m.candidate)); } catch {} }
-      else pendingICE.push(m.candidate);
+      if (remoteDescSet) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(m.candidate)); } catch {}
+      } else {
+        pendingICE.push(m.candidate);
+      }
     }
   }
 
   function openSignaling() {
     sigWs = new WebSocket(SIG_URL);
     sigWs.onopen = () => { wsQueue.forEach(d => sigWs.send(d)); wsQueue = []; };
-    sigWs.onmessage = async (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } await onSignal(m); };
+    sigWs.onmessage = async (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      await onSignal(m);
+    };
     sigWs.onerror = () => { p2pEl.textContent = "Signaling error"; };
-  }
-
-  function notifyParent(ev) {
-    try { window.parent.postMessage({ vlv: ev }, "*"); } catch {}
   }
 
   buildPC();
