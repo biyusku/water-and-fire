@@ -5,9 +5,9 @@ const url     = require("url");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const PORT        = process.env.PORT || 3000;
-const VLV_API     = process.env.VLV_API    || "http://213.146.184.56:9090";
-const VLV_SIGNAL  = process.env.VLV_SIGNAL || "ws://213.146.184.56:8080";
-const VLV_LOBBY   = process.env.VLV_LOBBY  || "ws://213.146.184.56:8081";
+const VLV_API     = process.env.VLV_API    || "https://vlvapi.rusk.agency";
+const VLV_SIGNAL  = process.env.VLV_SIGNAL || "wss://vlvsignal.rusk.agency";
+const VLV_LOBBY   = process.env.VLV_LOBBY  || "wss://vlvlobby.rusk.agency";
 const VLV_API_KEY = process.env.VLV_API_KEY || "254db297e6a785d586e237f5366dc722";
 
 const MIME = {

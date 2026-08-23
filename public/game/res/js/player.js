@@ -154,6 +154,7 @@ export class Player extends Sprite {
             ) {
                 //collect diamond
                 this.diamonds.splice(i, 1);
+                if (window.__playGameSound) window.__playGameSound("diamond");
             }
         }
     }
@@ -168,6 +169,7 @@ export class Player extends Sprite {
                 this.hitbox.position.y + this.hitbox.height <=
                     door.hitbox.position.y + door.hitbox.height
             ) {
+                if (!door.pressed && window.__playGameSound) window.__playGameSound("door");
                 door.pressed = true;
                 return;
             }

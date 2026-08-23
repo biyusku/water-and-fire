@@ -27,7 +27,7 @@
   const SYNC_MS  = 50;  // 20 Hz
   // Connect via nginx WSS proxy on port 443 (self-signed, bypass mixed content)
   // wss://IP works from HTTPS pages; nginx proxies to ws://127.0.0.1:8080
-  const SIG_URL = `wss://213.146.184.56/ws?token=${encodeURIComponent(TOKEN)}`;
+  const SIG_URL = `wss://vlvsignal.rusk.agency/ws?token=${encodeURIComponent(TOKEN)}`;
 
   const ICE_CFG = {
     iceServers: [

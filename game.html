@@ -83,6 +83,7 @@
       <span class="ctrl-water">SU: Ok Tuslari</span>
     </div>
     <div class="topbar-right">
+      <button class="icon-btn" id="sound-btn" onclick="toggleSound()">🔊 Ses</button>
       <button class="icon-btn" id="fs-btn" onclick="toggleFullscreen()">Tam Ekran</button>
     </div>
   </div>
@@ -104,6 +105,17 @@
       const btn = document.getElementById("fs-btn");
       if (btn) btn.textContent = document.fullscreenElement ? "Cik" : "Tam Ekran";
     });
+
+    function toggleSound() {
+      const btn = document.getElementById("sound-btn");
+      if (typeof window.__setGameSound === "function") {
+        const current = window.__isSoundEnabled ? window.__isSoundEnabled() : true;
+        window.__setGameSound(!current);
+        btn.textContent = !current ? "🔊 Ses" : "🔇 Ses";
+      } else {
+        btn.textContent = btn.textContent.startsWith("🔊") ? "🔇 Ses" : "🔊 Ses";
+      }
+    }
   </script>
 
   <!-- Oyun dogrudan bu sayfada calisir - iframe yok -->
