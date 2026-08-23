@@ -140,8 +140,21 @@
     pendingCandidates = [];
   }
 
+  let sigRole = null; // "offerer" | "answerer" — assigned by signaling server
+
   async function onSignal(m) {
     if (!pc) return;
+
+    // Signaling server assigns WebRTC roles — use this instead of ROLE param
+    if (m.type === "role") {
+      sigRole = m.role; // "offerer" or "answerer"
+      log("signaling role:", sigRole);
+      if (sigRole === "offerer") {
+        // Wait a bit for the other peer to connect, then send offer
+        setTimeout(makeOffer, 600);
+      }
+      return;
+    }
 
     if (m.type === "offer") {
       await pc.setRemoteDescription(new RTCSessionDescription(m));
@@ -150,6 +163,7 @@
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
       sig({ type: "answer", sdp: ans.sdp });
+      log("answer sent");
 
     } else if (m.type === "answer") {
       await pc.setRemoteDescription(new RTCSessionDescription(m));
@@ -160,7 +174,6 @@
       if (remoteDescSet) {
         try { await pc.addIceCandidate(new RTCIceCandidate(m.candidate)); } catch {}
       } else {
-        // Buffer until remote desc is set
         pendingCandidates.push(m.candidate);
       }
     }
@@ -196,11 +209,7 @@
       // Flush buffered messages
       wsQueue.forEach(d => ws.send(d));
       wsQueue = [];
-      // Host sends offer after both sides have connected
-      // Add a delay to give guest time to connect
-      if (ROLE === "host") {
-        setTimeout(makeOffer, 800);
-      }
+      // Offer is triggered by "role" message from signaling server — not here
     };
 
     ws.onmessage = async (e) => {
