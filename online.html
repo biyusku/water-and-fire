@@ -218,6 +218,7 @@
 
   // ── State ────────────────────────────────────────────────────────────────
   let myRole   = null;   // "host" | "guest"
+  let myName   = null;
   let ticketId = null;
   let lobbyWs  = null;
 
@@ -237,7 +238,9 @@
     lock();
     myRole = role;
     const char     = role === "host" ? "fireboy" : "watergirl";
-    const playerId = char + "-" + Math.random().toString(36).slice(2, 8);
+    const nameInput = document.getElementById("player-name").value.trim();
+    myName = nameInput || (role === "host" ? "Fireboy" : "Watergirl");
+    const playerId = encodeURIComponent(myName) + "-" + Math.random().toString(36).slice(2, 6);
 
     setStatus("Joining matchmaking queue…", "amber");
 
@@ -299,6 +302,7 @@
     gameUrl.searchParams.set("vlv",   "1");
     gameUrl.searchParams.set("role",  myRole);
     gameUrl.searchParams.set("token", token);
+    gameUrl.searchParams.set("name",  encodeURIComponent(myName));
 
     const frame = document.getElementById("game-frame");
     frame.src = gameUrl.toString();

@@ -1,13 +1,17 @@
 /**
  * vlv-mp.js — VLV Multiplayer Layer for Fireboy & Watergirl
  *
- * Yükleme: public/game/index.html içine eklendi.
- * Sadece URL'de ?vlv=1 varsa aktifleşir.
+ * URL params:
+ *   vlv=1          — enable multiplayer
+ *   role=host      — Fireboy  (ArrowKeys)
+ *   role=guest     — Watergirl (WASD)
+ *   token=<jwt>    — VLV signaling JWT
+ *   name=<string>  — player display name
  *
- * ?vlv=1&role=host&token=JWT  → Fireboy (ArrowKeys), WebRTC offer oluşturur
- * ?vlv=1&role=guest&token=JWT → Watergirl (WASD),    WebRTC offer'a cevap verir
- *
- * 20 Hz DataChannel sync: { t:"s", x, y, vx, vy, kl, kr, ku }
+ * Features:
+ *   - WebRTC DataChannel @ 20 Hz position sync
+ *   - Player names shown above characters on canvas
+ *   - Key stuck fix via window blur
  */
 
 (function () {
@@ -16,47 +20,86 @@
   const params = new URLSearchParams(location.search);
   if (params.get("vlv") !== "1") return;
 
-  const ROLE  = params.get("role");   // "host" | "guest"
-  const TOKEN = params.get("token");
+  const ROLE   = params.get("role");
+  const TOKEN  = params.get("token");
+  const MY_NAME = decodeURIComponent(params.get("name") || (ROLE === "host" ? "Fireboy" : "Watergirl"));
 
-  if (!ROLE || !TOKEN) {
-    console.warn("[VLV-MP] missing role or token");
-    return;
-  }
+  if (!ROLE || !TOKEN) { console.warn("[VLV-MP] missing role or token"); return; }
 
   const SYNC_MS = 50; // 20 Hz
 
-  // WS proxy paths (same-origin, avoids mixed-content on HTTPS)
-  const isHttps   = location.protocol === "https:";
-  const wsScheme  = isHttps ? "wss" : "ws";
-  const SIG_URL   = isHttps
+  const isHttps  = location.protocol === "https:";
+  const wsScheme = isHttps ? "wss" : "ws";
+  const SIG_URL  = isHttps
     ? `${wsScheme}://${location.host}/ws-signal?token=${encodeURIComponent(TOKEN)}`
     : `ws://213.146.184.56:8080/ws?token=${encodeURIComponent(TOKEN)}`;
 
   const ICE = [
     { urls: "stun:213.146.184.56:3478" },
-    {
-      urls: [
-        "turn:213.146.184.56:3478?transport=udp",
-        "turn:213.146.184.56:3478?transport=tcp",
-      ],
-      username:   "vlv-demo",
-      credential: "changeme-in-production",
-    },
+    { urls: ["turn:213.146.184.56:3478?transport=udp","turn:213.146.184.56:3478?transport=tcp"],
+      username: "vlv-demo", credential: "changeme-in-production" },
   ];
 
   const log = (...a) => console.log("[VLV-MP]", ...a);
 
   // ── player refs ────────────────────────────────────────────────────────────
-  // allPlayers[0] = fireboy, allPlayers[1] = watergirl
-  // host = fireboy = index 0, guest = watergirl = index 1
 
   function getMe()     { const p = window.vlvPlayers; return p && p[ROLE === "host" ? 0 : 1]; }
   function getRemote() { const p = window.vlvPlayers; return p && p[ROLE === "host" ? 1 : 0]; }
 
+  // ── names ──────────────────────────────────────────────────────────────────
+
+  let remoteName = ROLE === "host" ? "Watergirl" : "Fireboy";
+
+  // Draw names above players on every animation frame
+  let canvas = null;
+  let ctx    = null;
+
+  function initCanvas() {
+    canvas = document.getElementById("canvas");
+    if (canvas) ctx = canvas.getContext("2d");
+  }
+
+  function drawNames() {
+    if (!ctx || !canvas) { initCanvas(); return; }
+    const me     = getMe();
+    const remote = getRemote();
+    if (!me || !remote) return;
+
+    ctx.save();
+    ctx.font         = "bold 13px Arial";
+    ctx.textAlign    = "center";
+    ctx.textBaseline = "bottom";
+
+    // My name
+    const myColor = ROLE === "host" ? "#ff6b35" : "#4fc3f7";
+    ctx.fillStyle   = "rgba(0,0,0,0.55)";
+    const myW = ctx.measureText(MY_NAME).width + 10;
+    ctx.fillRect(me.position.x - myW/2, me.position.y - me.height - 20, myW, 18);
+    ctx.fillStyle = myColor;
+    ctx.fillText(MY_NAME, me.position.x, me.position.y - me.height - 4);
+
+    // Remote name
+    const remColor = ROLE === "host" ? "#4fc3f7" : "#ff6b35";
+    ctx.fillStyle   = "rgba(0,0,0,0.55)";
+    const remW = ctx.measureText(remoteName).width + 10;
+    ctx.fillRect(remote.position.x - remW/2, remote.position.y - remote.height - 20, remW, 18);
+    ctx.fillStyle = remColor;
+    ctx.fillText(remoteName, remote.position.x, remote.position.y - remote.height - 4);
+
+    ctx.restore();
+  }
+
+  // Hook into animation loop via requestAnimationFrame overlay
+  function startNameDraw() {
+    function loop() {
+      drawNames();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  }
+
   // ── key locking ────────────────────────────────────────────────────────────
-  // Set remote player's key strings to values that will never match a real
-  // keydown event, so local keyboard cannot move them.
 
   let keyLocked = false;
 
@@ -68,18 +111,27 @@
     remote.keys.left  = "__vlv_none__";
     remote.keys.right = "__vlv_none__";
     keyLocked = true;
-    log("remote player keys locked ✓");
+    log("remote keys locked ✓");
     return true;
   }
 
-  // Poll until game has initialized allPlayers, then lock
   function pollLockKeys() {
-    const t = setInterval(() => {
-      if (lockRemoteKeys()) clearInterval(t);
-    }, 100);
-    // Give up after 10s
+    const t = setInterval(() => { if (lockRemoteKeys()) clearInterval(t); }, 100);
     setTimeout(() => clearInterval(t), 10000);
   }
+
+  // ── key stuck fix ──────────────────────────────────────────────────────────
+
+  function clearMyKeys() {
+    const me = getMe();
+    if (!me) return;
+    for (const k in me.keys.pressed) me.keys.pressed[k] = false;
+  }
+
+  window.addEventListener("blur", clearMyKeys);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) clearMyKeys();
+  });
 
   // ── WebRTC ─────────────────────────────────────────────────────────────────
 
@@ -87,34 +139,26 @@
   let dc = null;
   let ws = null;
   let syncTimer = null;
-  let pendingCandidates = []; // buffer ICE candidates until remote desc is set
+  let pendingCandidates = [];
   let remoteDescSet = false;
+  let sigRole = null;
 
   function buildPC() {
     pc = new RTCPeerConnection({ iceServers: ICE });
-
-    pc.onicecandidate = ({ candidate }) => {
-      if (candidate) sig({ type: "ice", candidate });
-    };
-
+    pc.onicecandidate = ({ candidate }) => { if (candidate) sig({ type: "ice", candidate }); };
     pc.onconnectionstatechange = () => {
       log("pc:", pc.connectionState);
-      if (pc.connectionState === "connected") {
-        notifyParent("connected");
-      } else if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+      if (pc.connectionState === "connected") notifyParent("connected");
+      else if (["failed","disconnected"].includes(pc.connectionState)) {
         notifyParent("disconnected");
         if (syncTimer) clearInterval(syncTimer);
       }
     };
-
     if (ROLE === "host") {
       dc = pc.createDataChannel("g", { ordered: false, maxRetransmits: 0 });
       wireChannel(dc);
     } else {
-      pc.ondatachannel = ({ channel }) => {
-        dc = channel;
-        wireChannel(dc);
-      };
+      pc.ondatachannel = ({ channel }) => { dc = channel; wireChannel(dc); };
     }
   }
 
@@ -124,13 +168,12 @@
       log("DataChannel open ✓");
       notifyParent("connected");
       startSync();
-      // Lock keys when channel opens (game should be loaded by now)
       if (!lockRemoteKeys()) pollLockKeys();
+      // Send our name to the other player
+      try { ch.send(JSON.stringify({ t: "name", name: MY_NAME })); } catch {}
     };
-    ch.onclose   = () => { log("DataChannel closed"); notifyParent("disconnected"); };
-    ch.onmessage = ({ data }) => {
-      try { applyRemote(JSON.parse(data)); } catch {}
-    };
+    ch.onclose   = () => { notifyParent("disconnected"); };
+    ch.onmessage = ({ data }) => { try { applyRemote(JSON.parse(data)); } catch {} };
   }
 
   async function drainCandidates() {
@@ -140,19 +183,13 @@
     pendingCandidates = [];
   }
 
-  let sigRole = null; // "offerer" | "answerer" — assigned by signaling server
-
   async function onSignal(m) {
     if (!pc) return;
 
-    // Signaling server assigns WebRTC roles — use this instead of ROLE param
     if (m.type === "role") {
-      sigRole = m.role; // "offerer" or "answerer"
+      sigRole = m.role;
       log("signaling role:", sigRole);
-      if (sigRole === "offerer") {
-        // Wait a bit for the other peer to connect, then send offer
-        setTimeout(makeOffer, 600);
-      }
+      if (sigRole === "offerer") setTimeout(makeOffer, 600);
       return;
     }
 
@@ -163,7 +200,6 @@
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
       sig({ type: "answer", sdp: ans.sdp });
-      log("answer sent");
 
     } else if (m.type === "answer") {
       await pc.setRemoteDescription(new RTCSessionDescription(m));
@@ -188,37 +224,26 @@
 
   // ── signaling ───────────────────────────────────────────────────────────────
 
-  let wsReady = false;
-  let wsQueue = []; // buffer messages until WS is open
+  let wsQueue = [];
 
   function sig(payload) {
     const data = JSON.stringify(payload);
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(data);
-    } else {
-      wsQueue.push(data);
-    }
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(data);
+    else wsQueue.push(data);
   }
 
   function openSignaling() {
     ws = new WebSocket(SIG_URL);
-
     ws.onopen = () => {
       log("signaling open");
-      wsReady = true;
-      // Flush buffered messages
       wsQueue.forEach(d => ws.send(d));
       wsQueue = [];
-      // Offer is triggered by "role" message from signaling server — not here
     };
-
     ws.onmessage = async (e) => {
       let m; try { m = JSON.parse(e.data); } catch { return; }
-      log("signal rx:", m.type);
       await onSignal(m);
     };
-
-    ws.onerror = (e) => log("signaling error", e);
+    ws.onerror = (e) => log("error", e);
     ws.onclose = () => log("signaling closed");
   }
 
@@ -232,7 +257,7 @@
       const k = me.keys.pressed;
       try {
         dc.send(JSON.stringify({
-          t:  "s",
+          t: "s",
           x:  Math.round(me.position.x * 10) / 10,
           y:  Math.round(me.position.y * 10) / 10,
           vx: Math.round(me.velocity.x * 100) / 100,
@@ -246,6 +271,11 @@
   }
 
   function applyRemote(m) {
+    if (m.t === "name") {
+      remoteName = m.name;
+      log("remote name:", remoteName);
+      return;
+    }
     if (m.t !== "s") return;
     const remote = getRemote();
     if (!remote) return;
@@ -256,11 +286,10 @@
     remote.keys.pressed.left  = !!m.kl;
     remote.keys.pressed.right = !!m.kr;
     remote.keys.pressed.up    = !!m.ku;
-    // Re-lock keys every apply in case game reset them
     if (!keyLocked) lockRemoteKeys();
   }
 
-  // ── parent communication ────────────────────────────────────────────────────
+  // ── parent ──────────────────────────────────────────────────────────────────
 
   function notifyParent(event) {
     try { window.parent.postMessage({ vlv: event }, "*"); } catch {}
@@ -268,9 +297,10 @@
 
   // ── boot ────────────────────────────────────────────────────────────────────
 
-  log(`role=${ROLE} starting…`);
-  pollLockKeys(); // start locking keys immediately when game loads
+  log(`role=${ROLE} name="${MY_NAME}" starting…`);
+  pollLockKeys();
   buildPC();
   openSignaling();
+  startNameDraw();
 
 })();

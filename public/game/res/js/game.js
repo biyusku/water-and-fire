@@ -786,6 +786,15 @@ function playGame() {
         });
     });
 
+    // Fix: release all keys when window loses focus (prevents stuck keys)
+    window.addEventListener("blur", () => {
+        allPlayers.forEach((player) => {
+            for (const key in player.keys.pressed) {
+                player.keys.pressed[key] = false;
+            }
+        });
+    });
+
     document.addEventListener("contextmenu", () => {
         allPlayers.forEach((player) => {
             for (const key in player.keys.pressed) {
