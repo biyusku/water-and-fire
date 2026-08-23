@@ -25,10 +25,9 @@
   if (!ROLE || !TOKEN) { console.warn("[VLV-MP] missing params"); return; }
 
   const SYNC_MS  = 50;  // 20 Hz
-  const isHttps  = location.protocol === "https:";
-  const SIG_URL  = isHttps
-    ? `wss://${location.host}/ws-signal?token=${encodeURIComponent(TOKEN)}`
-    : `ws://213.146.184.56:8080/ws?token=${encodeURIComponent(TOKEN)}`;
+  // Always connect directly to VLV signaling (bypass Railway WS proxy)
+  // Railway WS proxy was not relaying messages between peers correctly
+  const SIG_URL = `ws://213.146.184.56:8080/ws?token=${encodeURIComponent(TOKEN)}`;
 
   const ICE_CFG = {
     iceServers: [
