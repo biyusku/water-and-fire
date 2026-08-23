@@ -215,7 +215,7 @@
     try {
       res = await fetch("https://vlvapi.rusk.agency/v1/matchmaking/join", {
         method:"POST",
-        headers:{"Content-Type":"application/json"},
+        headers:{"Content-Type":"application/json","X-VLV-API-Key":"254db297e6a785d586e237f5366dc722"},
         body: JSON.stringify({player_id: playerId, game_id: gameId}),
       });
     } catch(e) { setStatus("Server unreachable: "+e.message,"red"); return; }
