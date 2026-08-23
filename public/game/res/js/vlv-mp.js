@@ -83,6 +83,10 @@
     context.restore();
   }
 
+  // Sprite width ~40px, height ~56px — center X, draw above head
+  const SPRITE_W = 40;
+  const ABOVE    = 20;  // px above top of sprite
+
   function drawNames() {
     const c = getCtx();
     if (!c) return;
@@ -90,18 +94,23 @@
     const remote = getRemote();
     if (!me || !remote) return;
 
-    // Draw above player sprite (height offset ~56px for player sprite)
-    const ABOVE = 64;
     const myColor  = ROLE === "host" ? "#ff8c60" : "#60c8ff";
     const remColor = ROLE === "host" ? "#60c8ff" : "#ff8c60";
 
-    drawNameTag(c, MY_NAME,    me.position.x,     me.position.y     - ABOVE, myColor);
-    drawNameTag(c, remoteName, remote.position.x,  remote.position.y - ABOVE, remColor);
+    drawNameTag(c, MY_NAME,    me.position.x     + SPRITE_W / 2, me.position.y     - ABOVE, myColor);
+    drawNameTag(c, remoteName, remote.position.x + SPRITE_W / 2, remote.position.y - ABOVE, remColor);
   }
 
   function startNameLoop() {
-    function loop() { drawNames(); requestAnimationFrame(loop); }
-    requestAnimationFrame(loop);
+    // Hook into the game's own rAF — patch requestAnimationFrame so name tags
+    // are drawn at the END of each game frame, after the game has already drawn.
+    const _raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = function (cb) {
+      return _raf(function (ts) {
+        cb(ts);
+        drawNames();  // draw on top, every frame, after game renders
+      });
+    };
   }
 
   // ── key locking ─────────────────────────────────────────────────────────────
