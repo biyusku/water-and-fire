@@ -99,6 +99,15 @@ const background = new Sprite({
     imgSrc: `./res/img/maps/bg.png`,
 });
 
+// Expose functions for VLV multiplayer sync
+window.startGame       = startGame;
+window.setCurrentLevel = setCurrentLevel;
+window.setMenuActive   = setMenuActive;
+window.setEndGame      = setEndGame;
+window.getMousePos     = getMousePos;
+window.checkMenuDiamondsCollision = checkMenuDiamondsCollision;
+window.checkButtonCollision       = checkButtonCollision;
+
 function startGame() {
     died = false;
     menuButtonPressed = null;
@@ -352,11 +361,17 @@ function playGame() {
     let time;
 
     function animation() {
+        window.animation = animation; // expose for VLV sync
         now = Date.now();
         delta = now - then;
 
-        // Expose players to parent window for VLV multiplayer sync
-        window.vlvPlayers = allPlayers;
+        // Expose players and game state to parent window for VLV multiplayer sync
+        window.vlvPlayers   = allPlayers;
+        window.menuActive   = menuActive;
+        window.menuLevels   = menuLevels;
+        window.menuButtons  = menuButtons;
+        window.endGame      = endGame;
+        window.canvas       = canvas;
 
         if (delta > interval) {
             then = now - (delta % interval);

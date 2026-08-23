@@ -306,12 +306,36 @@
       log("remote name:", remoteName);
       return;
     }
-    if (m.t === "next_level") {
-      log("host triggered next level — auto-continuing");
-      // Find and click the continue button in the won menu
-      const btns = window.menuButtons;
-      if (btns && btns.won && btns.won.continue) {
-        btns.won.continue.run();
+    if (m.t === "ui") {
+      log("host ui action:", m.action, m);
+      if (m.action === "level") {
+        // Host selected a level from main menu
+        const setCurrentLevel = window.setCurrentLevel;
+        const startGame       = window.startGame;
+        const animation       = window.animation;
+        const setMenuActive   = window.setMenuActive;
+        if (setCurrentLevel) setCurrentLevel(m.index);
+        if (setMenuActive)   setMenuActive(null);
+        if (startGame)       startGame();
+        if (animation)       animation();
+      } else if (m.action === "button") {
+        // Host clicked a menu button
+        const btns = window.menuButtons;
+        if (!btns || !btns[m.menu] || !btns[m.menu][m.btn]) return;
+        const btn = btns[m.menu][m.btn];
+        btn.run();
+        if (m.endGame) {
+          const setEndGame  = window.setEndGame;
+          const startGame   = window.startGame;
+          const animation   = window.animation;
+          if (setEndGame)  setEndGame(false);
+          if (startGame)   startGame();
+          if (animation)   animation();
+        }
+        if (m.menu !== "mainMenu") {
+          const setMenuActive = window.setMenuActive;
+          if (setMenuActive) setMenuActive(null);
+        }
       }
       return;
     }
@@ -333,25 +357,68 @@
     try { window.parent.postMessage({ vlv: ev }, "*"); } catch {}
   }
 
-  // ── level sync (host → guest) ────────────────────────────────────────────────
-  function hookContinueButton() {
-    // Wait until menuButtons is populated by the game, then patch it
+  // ── host UI sync (host → guest) ───────────────────────────────────────────────
+  function hookHostUI() {
+    if (ROLE !== "host") return;
+
+    // Wait for canvas + game globals to be ready
     const interval = setInterval(() => {
-      const btns = window.menuButtons;
-      if (!btns || !btns.won || !btns.won.continue) return;
+      const canvas = window.canvas || document.querySelector("canvas");
+      if (!canvas || !window.menuButtons) return;
       clearInterval(interval);
-      if (ROLE !== "host") return; // only host sends next_level
-      const orig = btns.won.continue.runCode.bind(btns.won.continue);
-      btns.won.continue.runCode = function () {
-        // Send to guest first, then run locally
-        if (dc && dc.readyState === "open") {
-          try { dc.send(JSON.stringify({ t: "next_level" })); } catch {}
+
+      const origMouseUp = canvas.onmouseup;
+      canvas.onmouseup = function (event) {
+        // Run the original handler first
+        if (origMouseUp) origMouseUp.call(canvas, event);
+
+        // Then mirror to guest via DataChannel
+        if (!dc || dc.readyState !== "open") return;
+
+        const menuActive  = window.menuActive;
+        const menuLevels  = window.menuLevels;
+        const menuButtons = window.menuButtons;
+        const getMousePos = window.getMousePos;
+        const checkMenuDiamondsCollision = window.checkMenuDiamondsCollision;
+        const checkButtonCollision       = window.checkButtonCollision;
+        const endGame = window.endGame;
+
+        if (!getMousePos) return;
+        const mousePos = getMousePos(event);
+
+        // Level selection from main menu
+        if (menuActive === "mainMenu" && menuLevels && checkMenuDiamondsCollision) {
+          for (const index in menuLevels) {
+            if (checkMenuDiamondsCollision(mousePos, menuLevels[index])) {
+              sendUI({ action: "level", index });
+              return;
+            }
+          }
         }
-        orig();
+
+        // Menu button click
+        if (menuActive && menuButtons && menuButtons[menuActive] && checkButtonCollision) {
+          for (const btn in menuButtons[menuActive]) {
+            if (checkButtonCollision(mousePos, menuButtons[menuActive][btn])) {
+              setTimeout(() => {
+                sendUI({ action: "button", menu: menuActive, btn, endGame: !!endGame });
+              }, 210); // slightly after game's own 200ms delay
+              return;
+            }
+          }
+        }
       };
-      log("continue button hooked ✓");
-    }, 200);
+      log("host UI hook active ✓");
+    }, 300);
   }
+
+  function sendUI(payload) {
+    if (!dc || dc.readyState !== "open") return;
+    try { dc.send(JSON.stringify({ t: "ui", ...payload })); } catch {}
+  }
+
+  // Also expose game globals guest needs (game.js sets them on window already)
+  // setCurrentLevel, setMenuActive, startGame, animation, menuButtons, endGame
 
   // ── boot ─────────────────────────────────────────────────────────────────────
   log(`role=${ROLE} name="${MY_NAME}" booting…`);
@@ -359,6 +426,6 @@
   buildPC();
   openSignaling();
   startNameLoop();
-  hookContinueButton();
+  hookHostUI();
 
 })();
