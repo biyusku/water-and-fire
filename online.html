@@ -162,30 +162,19 @@
         setStatus("Choose your character to join", "");
       }
     } else {
-      // Create room flow
+      // No room yet — pick character to create + join instantly
       sec.innerHTML =
-        '<button class="btn btn-room" id="btn-create" onclick="createRoom()">+ Create Room</button>' +
-        '<div id="room-box">' +
+        '<div class="divider">create a room</div>' +
+        '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')">&#x1F525; Play as Fireboy</button>' +
+        '<button class="btn btn-water" id="btn-water" onclick="joinAs(\'guest\')">&#x1F4A7; Play as Watergirl</button>' +
+        '<div id="room-box" style="display:none">' +
           '<div class="room-label">Share this link with your friend:</div>' +
           '<div class="room-link-row"><div id="room-url"></div>' +
           '<button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
-        '</div>' +
-        '<div class="divider" id="char-divider" style="display:none">choose your character</div>' +
-        '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')"  style="display:none">&#x1F525; Play as Fireboy</button>' +
-        '<button class="btn btn-water" id="btn-water" onclick="joinAs(\'guest\')" style="display:none">&#x1F4A7; Play as Watergirl</button>';
+        '</div>';
+      setStatus("Pick a character to create your room", "");
     }
   })();
-
-  function createRoom() {
-    roomId = genRoomId();
-    document.getElementById("btn-create").style.display   = "none";
-    document.getElementById("room-box").style.display     = "block";
-    document.getElementById("char-divider").style.display = "flex";
-    document.getElementById("btn-fire").style.display     = "block";
-    document.getElementById("btn-water").style.display    = "block";
-    updateRoomUrl(); // will be updated after character selection
-    setStatus("Pick your character, then share the link", "amber");
-  }
 
   function updateRoomUrl() {
     var el = document.getElementById("room-url");
@@ -202,7 +191,8 @@
 
   // ── Join ────────────────────────────────────────────────────────────────────
   async function joinAs(role) {
-    if (!roomId) { setStatus("Create a room first","red"); return; }
+    // If no room yet, create one now
+    if (!roomId) roomId = genRoomId();
     lock();
     myRole = role;
     var nameVal = document.getElementById("player-name").value.trim();
