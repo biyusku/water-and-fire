@@ -243,6 +243,8 @@
 
   // ── Launch ──────────────────────────────────────────────────────────────────
   function launchGame(token) {
+    // Store room+role in sessionStorage so Play Again can reuse them
+    try { sessionStorage.setItem("vlv_room", roomId); } catch(e) {}
     document.getElementById("lobby").style.display = "none";
     document.getElementById("arena").style.display = "flex";
     document.getElementById("role-label").textContent = myRole==="host"
@@ -261,9 +263,29 @@
   window.addEventListener("message", function(e) {
     if (!e.data||e.data.vlv==null) return;
     var badge = document.getElementById("p2p-badge");
-    if (e.data.vlv==="connected") { badge.textContent="P2P Connected ✓"; badge.className="ok"; }
-    else if (e.data.vlv==="disconnected") { badge.textContent="Peer disconnected"; badge.className="lost"; }
+    if (e.data.vlv==="connected") {
+      badge.textContent="P2P Connected ✓"; badge.className="ok";
+    } else if (e.data.vlv==="disconnected") {
+      badge.textContent="Peer disconnected"; badge.className="lost";
+      // Show play again button
+      showPlayAgain();
+    }
   });
+
+  function showPlayAgain() {
+    var topbar = document.getElementById("topbar");
+    if (document.getElementById("play-again-btn")) return;
+    var btn = document.createElement("button");
+    btn.id = "play-again-btn";
+    btn.textContent = "Play Again";
+    btn.style.cssText = "background:#1e88e5;border:none;border-radius:8px;color:#fff;padding:6px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;";
+    btn.onclick = function() {
+      // Full page reload — clears all WebRTC/WS state cleanly
+      // Keep room param so friend can rejoin same room
+      location.href = location.origin + location.pathname + (roomId ? "?room=" + roomId : "");
+    };
+    topbar.appendChild(btn);
+  }
 </script>
 </body>
 </html>
