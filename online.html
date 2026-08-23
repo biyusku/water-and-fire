@@ -7,90 +7,54 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #0f0f1a;
-      color: #e8e8f0;
+      background: #0f0f1a; color: #e8e8f0;
       font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      min-height: 100vh; display: flex;
+      flex-direction: column; align-items: center; justify-content: center;
     }
-
     #lobby { text-align: center; width: 440px; max-width: 95vw; }
     .logo { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; }
-    .logo .fire  { color: #ff6b35; }
-    .logo .water { color: #4fc3f7; }
+    .logo .fire { color: #ff6b35; } .logo .water { color: #4fc3f7; }
     .tagline { color: #555; font-size: 0.88rem; margin-bottom: 32px; }
-
-    .card {
-      background: #16162a;
-      border: 1px solid #252540;
-      border-radius: 20px;
-      padding: 32px 28px;
-    }
+    .card { background: #16162a; border: 1px solid #252540; border-radius: 20px; padding: 32px 28px; }
     .card-title { font-size: 0.95rem; font-weight: 600; color: #888; margin-bottom: 18px; }
-
     input[type=text] {
-      width: 100%;
-      padding: 12px 16px;
-      background: #0e0e22;
-      border: 1px solid #2a2a45;
-      border-radius: 10px;
-      color: #e8e8f0;
-      font-size: 1rem;
-      margin-bottom: 14px;
-      outline: none;
+      width: 100%; padding: 12px 16px; background: #0e0e22;
+      border: 1px solid #2a2a45; border-radius: 10px;
+      color: #e8e8f0; font-size: 1rem; margin-bottom: 14px; outline: none;
     }
     input[type=text]:focus { border-color: #4a4a80; }
-
     .divider {
       display: flex; align-items: center; gap: 10px;
-      margin: 6px 0 14px;
-      color: #444; font-size: 0.8rem;
+      margin: 6px 0 14px; color: #444; font-size: 0.8rem;
     }
-    .divider::before, .divider::after {
-      content: ""; flex: 1; height: 1px; background: #252540;
-    }
-
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #252540; }
     .btn {
       display: block; width: 100%; padding: 14px;
-      border: none; border-radius: 12px;
-      font-size: 1rem; font-weight: 700; cursor: pointer;
-      transition: opacity .15s, transform .1s;
-      margin-bottom: 10px;
+      border: none; border-radius: 12px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: opacity .15s, transform .1s; margin-bottom: 10px;
     }
-    .btn:hover   { opacity: .88; }
-    .btn:active  { transform: scale(.97); }
+    .btn:hover { opacity: .88; } .btn:active { transform: scale(.97); }
     .btn:disabled { opacity: .35; cursor: not-allowed; }
     .btn-fire  { background: linear-gradient(135deg,#ff6b35,#e53935); color:#fff; }
     .btn-water { background: linear-gradient(135deg,#1e88e5,#00acc1); color:#fff; }
     .btn-room  { background: #1e1e3a; border: 1px solid #333360; color: #aaa; font-size: 0.9rem; }
-
     #room-box {
-      display: none;
-      background: #0e0e22;
-      border: 1px solid #2a2a45;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 14px;
+      display: none; background: #0e0e22; border: 1px solid #2a2a45;
+      border-radius: 10px; padding: 14px; margin-bottom: 14px;
     }
     .room-label { color: #666; font-size: 0.82rem; margin-bottom: 8px; }
     .room-link-row { display: flex; gap: 8px; align-items: center; }
     #room-url {
-      flex: 1; background: #16162a; border: 1px solid #333;
-      border-radius: 6px; padding: 8px 10px;
-      color: #9090c0; font-family: monospace; font-size: 0.78rem;
+      flex: 1; background: #16162a; border: 1px solid #333; border-radius: 6px;
+      padding: 8px 10px; color: #9090c0; font-family: monospace; font-size: 0.78rem;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     #copy-btn {
-      background: #252545; border: none; border-radius: 6px;
-      color: #aaa; padding: 8px 12px; cursor: pointer; font-size: 0.8rem;
-      white-space: nowrap; flex-shrink: 0;
+      background: #252545; border: none; border-radius: 6px; color: #aaa;
+      padding: 8px 12px; cursor: pointer; font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;
     }
-    #copy-btn:hover  { background: #333360; }
-    #copy-btn.copied { color: #4caf50; }
-
+    #copy-btn:hover { background: #333360; } #copy-btn.copied { color: #4caf50; }
     .status {
       margin-top: 16px; display: flex; align-items: center; gap: 10px;
       background: #0e0e22; border-radius: 10px;
@@ -98,40 +62,22 @@
     }
     .dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; background:#333; }
     .dot.amber { background:#ff9800; animation:blink 1.1s infinite; }
-    .dot.green { background:#4caf50; }
-    .dot.red   { background:#f44336; }
+    .dot.green { background:#4caf50; } .dot.red { background:#f44336; }
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
-
-    .keys-guide {
-      margin-top: 24px; display: flex; justify-content: space-around;
-      font-size: 0.79rem; color: #555;
-    }
+    .keys-guide { margin-top: 24px; display: flex; justify-content: space-around; font-size: 0.79rem; color: #555; }
     .keys-guide .col { text-align: center; }
     .keys-guide .col-name { font-weight: 700; margin-bottom: 5px; font-size:0.87rem; }
-    .fire-col .col-name  { color: #ff6b35; }
-    .water-col .col-name { color: #4fc3f7; }
-    kbd {
-      background:#1f1f3a; border:1px solid #333; border-radius:4px;
-      padding:1px 7px; font-family:monospace; font-size:0.8rem; color:#ccc;
-    }
-
+    .fire-col .col-name { color: #ff6b35; } .water-col .col-name { color: #4fc3f7; }
+    kbd { background:#1f1f3a; border:1px solid #333; border-radius:4px; padding:1px 7px; font-family:monospace; font-size:0.8rem; color:#ccc; }
     #arena { display:none; flex-direction:column; align-items:center; width:100%; }
     #topbar {
-      width: min(1280px,100vw);
-      display:flex; align-items:center; justify-content:space-between;
+      width: min(1280px,100vw); display:flex; align-items:center; justify-content:space-between;
       padding: 8px 18px; background:#14142a; border-bottom:1px solid #1e1e40;
     }
     #role-label { font-size:0.9rem; font-weight:600; }
-    #p2p-badge {
-      font-size:0.78rem; font-weight:700; padding:4px 14px;
-      border-radius:20px; background:#ff9800; color:#fff;
-    }
-    #p2p-badge.ok   { background:#4caf50; }
-    #p2p-badge.lost { background:#f44336; }
-    #game-frame {
-      width:min(1280px,100vw); height:720px;
-      border:none; display:block; background:#000;
-    }
+    #p2p-badge { font-size:0.78rem; font-weight:700; padding:4px 14px; border-radius:20px; background:#ff9800; color:#fff; }
+    #p2p-badge.ok { background:#4caf50; } #p2p-badge.lost { background:#f44336; }
+    #game-frame { width:min(1280px,100vw); height:720px; border:none; display:block; background:#000; }
   </style>
 </head>
 <body>
@@ -139,19 +85,14 @@
 <div id="lobby">
   <div class="logo"><span class="fire">Fireboy</span> &amp; <span class="water">Watergirl</span></div>
   <div class="tagline">Online co-op &middot; powered by VLV</div>
-
   <div class="card">
     <div class="card-title">Your name</div>
-    <input type="text" id="player-name" placeholder="Enter your name&hellip;" maxlength="16"
-      autocomplete="off" spellcheck="false" />
-
+    <input type="text" id="player-name" placeholder="Enter your name&hellip;" maxlength="16" autocomplete="off" spellcheck="false" />
     <div id="room-section"></div>
-
     <div class="status">
       <div class="dot" id="sdot"></div>
       <span id="stext">Create a room or join via link</span>
     </div>
-
     <div class="keys-guide">
       <div class="col fire-col">
         <div class="col-name">&#x1F525; Fireboy</div>
@@ -174,55 +115,60 @@
 </div>
 
 <script>
-  const GAME_ID_PREFIX = "fw-room-";
+  var GAME_ID_PREFIX = "fw-room-";
+  var myRole = null, myName = "Player", roomId = null, lobbyWs = null;
 
-  let myRole  = null;
-  let myName  = "Player";
-  let roomId  = null;
-  let lobbyWs = null;
+  function genRoomId() { return Math.random().toString(36).slice(2,8).toUpperCase(); }
+  function getRoomFromUrl() { return new URLSearchParams(location.search).get("room"); }
+  // takenSlot: which character the room creator chose ("host" or "guest")
+  function getTakenFromUrl() { return new URLSearchParams(location.search).get("taken"); }
 
-  function genRoomId() {
-    return Math.random().toString(36).slice(2, 8).toUpperCase();
-  }
-
-  function getRoomFromUrl() {
-    return new URLSearchParams(location.search).get("room");
-  }
-
-  function buildRoomUrl(rid) {
-    return location.origin + location.pathname + "?room=" + rid;
+  function buildRoomUrl(rid, taken) {
+    return location.origin + location.pathname + "?room=" + rid + (taken ? "&taken=" + taken : "");
   }
 
   function setStatus(msg, state) {
     document.getElementById("stext").textContent = msg;
-    document.getElementById("sdot").className    = "dot " + (state || "");
+    document.getElementById("sdot").className = "dot " + (state||"");
   }
-
   function lock() {
-    ["btn-fire","btn-water","btn-create"].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.disabled = true;
+    ["btn-fire","btn-water","btn-create"].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.disabled=true;
     });
   }
 
-  // ── Init room UI ────────────────────────────────────────────────────────────
+  // ── Init UI ─────────────────────────────────────────────────────────────────
   (function initUI() {
-    var existing = getRoomFromUrl();
-    var sec = document.getElementById("room-section");
+    var rid   = getRoomFromUrl();
+    var taken = getTakenFromUrl(); // "host" or "guest" — already claimed by room creator
+    var sec   = document.getElementById("room-section");
 
-    if (existing) {
-      roomId = existing;
-      sec.innerHTML =
-        '<div class="divider">Room <strong style="color:#9090c0">' + existing + '</strong></div>' +
-        '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')">&#x1F525; Play as Fireboy</button>' +
-        '<button class="btn btn-water" id="btn-water" onclick="joinAs(\'guest\')">&#x1F4A7; Play as Watergirl</button>';
-      setStatus("Choose your character to join", "");
+    if (rid) {
+      // Joining existing room
+      roomId = rid;
+      var showFire  = (taken !== "host");
+      var showWater = (taken !== "guest");
+
+      var html = '<div class="divider">Room <strong style="color:#9090c0">' + rid + '</strong></div>';
+      if (showFire)  html += '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')">&#x1F525; Play as Fireboy</button>';
+      if (showWater) html += '<button class="btn btn-water" id="btn-water" onclick="joinAs(\'guest\')">&#x1F4A7; Play as Watergirl</button>';
+      sec.innerHTML = html;
+
+      if (taken) {
+        var takenChar = taken === "host" ? "Fireboy" : "Watergirl";
+        var freeChar  = taken === "host" ? "Watergirl" : "Fireboy";
+        setStatus(takenChar + " is taken — join as " + freeChar, "");
+      } else {
+        setStatus("Choose your character to join", "");
+      }
     } else {
+      // Create room flow
       sec.innerHTML =
         '<button class="btn btn-room" id="btn-create" onclick="createRoom()">+ Create Room</button>' +
         '<div id="room-box">' +
           '<div class="room-label">Share this link with your friend:</div>' +
-          '<div class="room-link-row"><div id="room-url"></div><button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
+          '<div class="room-link-row"><div id="room-url"></div>' +
+          '<button id="copy-btn" onclick="copyLink()">Copy</button></div>' +
         '</div>' +
         '<div class="divider" id="char-divider" style="display:none">choose your character</div>' +
         '<button class="btn btn-fire"  id="btn-fire"  onclick="joinAs(\'host\')"  style="display:none">&#x1F525; Play as Fireboy</button>' +
@@ -232,51 +178,59 @@
 
   function createRoom() {
     roomId = genRoomId();
-    var link = buildRoomUrl(roomId);
+    document.getElementById("btn-create").style.display   = "none";
+    document.getElementById("room-box").style.display     = "block";
+    document.getElementById("char-divider").style.display = "flex";
+    document.getElementById("btn-fire").style.display     = "block";
+    document.getElementById("btn-water").style.display    = "block";
+    updateRoomUrl(); // will be updated after character selection
+    setStatus("Pick your character, then share the link", "amber");
+  }
 
-    document.getElementById("btn-create").style.display    = "none";
-    document.getElementById("room-box").style.display      = "block";
-    document.getElementById("room-url").textContent        = link;
-    document.getElementById("char-divider").style.display  = "flex";
-    document.getElementById("btn-fire").style.display      = "block";
-    document.getElementById("btn-water").style.display     = "block";
-
-    setStatus("Share the link, then pick your character", "amber");
+  function updateRoomUrl() {
+    var el = document.getElementById("room-url");
+    if (el) el.textContent = buildRoomUrl(roomId, myRole);
   }
 
   function copyLink() {
-    navigator.clipboard.writeText(buildRoomUrl(roomId)).then(function() {
+    navigator.clipboard.writeText(buildRoomUrl(roomId, myRole)).then(function() {
       var btn = document.getElementById("copy-btn");
-      btn.textContent = "Copied!";
-      btn.classList.add("copied");
-      setTimeout(function() { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+      btn.textContent = "Copied!"; btn.classList.add("copied");
+      setTimeout(function(){ btn.textContent="Copy"; btn.classList.remove("copied"); }, 2000);
     });
   }
 
   // ── Join ────────────────────────────────────────────────────────────────────
   async function joinAs(role) {
-    if (!roomId) { setStatus("Create a room first", "red"); return; }
+    if (!roomId) { setStatus("Create a room first","red"); return; }
     lock();
     myRole = role;
     var nameVal = document.getElementById("player-name").value.trim();
-    myName = nameVal || (role === "host" ? "Fireboy" : "Watergirl");
+    myName = nameVal || (role==="host" ? "Fireboy" : "Watergirl");
 
-    var safe = myName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "p";
-    var playerId = safe + "-" + Math.random().toString(36).slice(2, 6);
+    // After selecting character, update the shareable link to include taken slot
+    updateRoomUrl();
+    var el = document.getElementById("room-url");
+    if (el) el.textContent = buildRoomUrl(roomId, role);
+
+    var safe = myName.replace(/[^a-zA-Z0-9]/g,"").slice(0,12)||"p";
+    var playerId = (role==="host"?"h-":"g-") + safe + "-" + Math.random().toString(36).slice(2,6);
     var gameId   = GAME_ID_PREFIX + roomId;
 
-    setStatus((role === "host" ? "Fireboy" : "Watergirl") + " — waiting for opponent…", "amber");
+    setStatus((role==="host" ? "&#x1F525; Fireboy" : "&#x1F4A7; Watergirl") + " &mdash; waiting for opponent&hellip;", "amber");
+    document.getElementById("stext").innerHTML =
+      (role==="host" ? "🔥 Fireboy" : "💧 Watergirl") + " — waiting for opponent…";
 
     var res;
     try {
       res = await fetch("/vlv/v1/matchmaking/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player_id: playerId, game_id: gameId }),
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({player_id: playerId, game_id: gameId}),
       });
-    } catch(e) { setStatus("Server unreachable: " + e.message, "red"); return; }
+    } catch(e) { setStatus("Server unreachable: "+e.message,"red"); return; }
 
-    if (!res.ok) { setStatus("Matchmaking error: HTTP " + res.status, "red"); return; }
+    if (!res.ok) { setStatus("Matchmaking error: HTTP "+res.status,"red"); return; }
 
     var data = await res.json();
     openLobbyWs(data.ticket_id);
@@ -284,48 +238,41 @@
 
   // ── Lobby WS ────────────────────────────────────────────────────────────────
   function openLobbyWs(tid) {
-    var wsBase = location.protocol === "https:" ? "wss" : "ws";
-    lobbyWs = new WebSocket(wsBase + "://" + location.host + "/ws-lobby?ticket=" + tid);
+    var wsBase = location.protocol==="https:" ? "wss" : "ws";
+    lobbyWs = new WebSocket(wsBase+"://"+location.host+"/ws-lobby?ticket="+tid);
     lobbyWs.onmessage = function(e) {
-      var msg; try { msg = JSON.parse(e.data); } catch { return; }
-      if (msg.type === "matched") {
+      var msg; try { msg=JSON.parse(e.data); } catch { return; }
+      if (msg.type==="matched") {
         lobbyWs.close();
-        setStatus("Opponent found! Loading game…", "green");
-        setTimeout(function() { launchGame(msg.token); }, 500);
+        setStatus("Opponent found! Loading game…","green");
+        setTimeout(function(){ launchGame(msg.token); }, 500);
       }
     };
-    lobbyWs.onerror = function() { setStatus("Connection error", "red"); };
+    lobbyWs.onerror = function(){ setStatus("Connection error","red"); };
   }
 
   // ── Launch ──────────────────────────────────────────────────────────────────
   function launchGame(token) {
     document.getElementById("lobby").style.display = "none";
     document.getElementById("arena").style.display = "flex";
-
-    document.getElementById("role-label").textContent = myRole === "host"
-      ? "🔥 " + myName + "  ·  ← → move  ·  ↑ jump"
-      : "💧 " + myName + "  ·  A D move  ·  W jump";
+    document.getElementById("role-label").textContent = myRole==="host"
+      ? "🔥 "+myName+"  ·  ← → move  ·  ↑ jump"
+      : "💧 "+myName+"  ·  A D move  ·  W jump";
 
     var gameUrl = new URL("./public/game/index.html", location.href);
-    gameUrl.searchParams.set("vlv",   "1");
-    gameUrl.searchParams.set("role",  myRole);
-    gameUrl.searchParams.set("token", token);
-    gameUrl.searchParams.set("name",  encodeURIComponent(myName));
-
+    gameUrl.searchParams.set("vlv",  "1");
+    gameUrl.searchParams.set("role", myRole);
+    gameUrl.searchParams.set("token",token);
+    gameUrl.searchParams.set("name", encodeURIComponent(myName));
     document.getElementById("game-frame").src = gameUrl.toString();
   }
 
   // ── P2P badge ────────────────────────────────────────────────────────────────
   window.addEventListener("message", function(e) {
-    if (!e.data || e.data.vlv == null) return;
+    if (!e.data||e.data.vlv==null) return;
     var badge = document.getElementById("p2p-badge");
-    if (e.data.vlv === "connected") {
-      badge.textContent = "P2P Connected ✓";
-      badge.className   = "ok";
-    } else if (e.data.vlv === "disconnected") {
-      badge.textContent = "Peer disconnected";
-      badge.className   = "lost";
-    }
+    if (e.data.vlv==="connected") { badge.textContent="P2P Connected ✓"; badge.className="ok"; }
+    else if (e.data.vlv==="disconnected") { badge.textContent="Peer disconnected"; badge.className="lost"; }
   });
 </script>
 </body>
