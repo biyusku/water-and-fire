@@ -1,12 +1,13 @@
-const http = require("http");
-const fs   = require("fs");
-const path = require("path");
-const url  = require("url");
+const http    = require("http");
+const fs      = require("fs");
+const path    = require("path");
+const url     = require("url");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 
-const PORT       = process.env.PORT || 3000;
-const VLV_API    = process.env.VLV_API    || "http://213.146.184.56:9090";
-const VLV_SIGNAL = process.env.VLV_SIGNAL || "ws://213.146.184.56:8080";
-const VLV_LOBBY  = process.env.VLV_LOBBY  || "ws://213.146.184.56:8081";
+const PORT        = process.env.PORT || 3000;
+const VLV_API     = process.env.VLV_API    || "http://213.146.184.56:9090";
+const VLV_SIGNAL  = process.env.VLV_SIGNAL || "ws://213.146.184.56:8080";
+const VLV_LOBBY   = process.env.VLV_LOBBY  || "ws://213.146.184.56:8081";
 const VLV_API_KEY = process.env.VLV_API_KEY || "254db297e6a785d586e237f5366dc722";
 
 const MIME = {
@@ -32,18 +33,17 @@ const CORS = {
 };
 
 // ── REST proxy: /vlv/* → VLV API ──────────────────────────────────────────
-
 function vlvProxy(req, res, vlvPath) {
-  var axios = require("axios");
+  var axios  = require("axios");
   var chunks = [];
   req.on("data", function(c) { chunks.push(c); });
-  req.on("end", function() {
+  req.on("end",  function() {
     var body = Buffer.concat(chunks).toString();
     axios({
       method: req.method.toLowerCase(),
-      url: VLV_API + vlvPath,
+      url:    VLV_API + vlvPath,
       headers: { "Content-Type": "application/json", "X-VLV-API-Key": VLV_API_KEY },
-      data: body || undefined,
+      data:   body || undefined,
       timeout: 10000,
       validateStatus: function() { return true; },
     }).then(function(r) {
@@ -57,54 +57,29 @@ function vlvProxy(req, res, vlvPath) {
   });
 }
 
-// ── WebSocket proxy ───────────────────────────────────────────────────────
+// ── WS proxies ────────────────────────────────────────────────────────────
+// http-proxy-middleware handles WS upgrade + framing + keepalive correctly
+var signalProxy = createProxyMiddleware({
+  target:      VLV_SIGNAL.replace("ws://", "http://").replace("wss://", "https://"),
+  changeOrigin: true,
+  ws:          true,
+  pathRewrite: { "^/ws-signal": "/ws" },
+  on: {
+    error: function(err, req, res) { console.error("[signal-proxy]", err.message); },
+  },
+});
 
-var net = require("net");
-
-/**
- * Proxy an incoming WS upgrade to a target WS server.
- * target: "ws://host:port"
- * reqPath: the path+query to forward (e.g. "/ws?token=xxx")
- */
-function wsProxy(req, socket, head, target, reqPath) {
-  var parsed = url.parse(target);
-  var host   = parsed.hostname;
-  var port   = parseInt(parsed.port) || 80;
-
-  var upstream = net.connect(port, host, function() {
-    // Forward the HTTP upgrade request verbatim
-    var headers = [
-      "GET " + reqPath + " HTTP/1.1",
-      "Host: " + host + ":" + port,
-      "Upgrade: websocket",
-      "Connection: Upgrade",
-      "Sec-WebSocket-Key: " + (req.headers["sec-websocket-key"] || "dGhlIHNhbXBsZSBub25jZQ=="),
-      "Sec-WebSocket-Version: " + (req.headers["sec-websocket-version"] || "13"),
-    ];
-
-    // Forward token/ticket from original request headers if present
-    var origin = req.headers["origin"];
-    if (origin) headers.push("Origin: " + origin);
-
-    upstream.write(headers.join("\r\n") + "\r\n\r\n");
-    if (head && head.length) upstream.write(head);
-
-    // Pipe bidirectionally
-    upstream.pipe(socket);
-    socket.pipe(upstream);
-  });
-
-  upstream.on("error", function(e) {
-    console.error("[ws-proxy]", e.message);
-    socket.destroy();
-  });
-  socket.on("error", function() { upstream.destroy(); });
-  socket.on("close", function() { upstream.destroy(); });
-  upstream.on("close", function() { socket.destroy(); });
-}
+var lobbyProxy = createProxyMiddleware({
+  target:      VLV_LOBBY.replace("ws://", "http://").replace("wss://", "https://"),
+  changeOrigin: true,
+  ws:          true,
+  pathRewrite: { "^/ws-lobby": "/lobby" },
+  on: {
+    error: function(err, req, res) { console.error("[lobby-proxy]", err.message); },
+  },
+});
 
 // ── Static file server ────────────────────────────────────────────────────
-
 function serveFile(res, filePath) {
   var ext = path.extname(filePath).toLowerCase();
   var ct  = MIME[ext] || "application/octet-stream";
@@ -125,7 +100,6 @@ function tryPaths(paths, res, urlPath) {
 }
 
 // ── HTTP server ───────────────────────────────────────────────────────────
-
 var server = http.createServer(function(req, res) {
   var parsed  = url.parse(req.url);
   var urlPath = parsed.pathname;
@@ -143,7 +117,17 @@ var server = http.createServer(function(req, res) {
     return;
   }
 
-  // Static
+  // WS proxy HTTP fallback (non-upgrade requests to proxy paths)
+  if (urlPath.startsWith("/ws-signal")) {
+    signalProxy(req, res);
+    return;
+  }
+  if (urlPath.startsWith("/ws-lobby")) {
+    lobbyProxy(req, res);
+    return;
+  }
+
+  // Static files
   if (urlPath === "/" || urlPath === "") urlPath = "/index.html";
   var base = __dirname;
   tryPaths([
@@ -155,26 +139,20 @@ var server = http.createServer(function(req, res) {
 });
 
 // ── WebSocket upgrade proxy ───────────────────────────────────────────────
-// /ws-signal?token=xxx  → VLV_SIGNAL/ws?token=xxx
-// /ws-lobby?ticket=xxx  → VLV_LOBBY/lobby?ticket=xxx
-
 server.on("upgrade", function(req, socket, head) {
-  var parsed  = url.parse(req.url);
-  var urlPath = parsed.pathname;
-  var qs      = parsed.search || "";
-
-  if (urlPath === "/ws-signal") {
-    wsProxy(req, socket, head, VLV_SIGNAL, "/ws" + qs);
-  } else if (urlPath === "/ws-lobby") {
-    wsProxy(req, socket, head, VLV_LOBBY, "/lobby" + qs);
+  var urlPath = url.parse(req.url).pathname;
+  if (urlPath.startsWith("/ws-signal")) {
+    signalProxy.upgrade(req, socket, head);
+  } else if (urlPath.startsWith("/ws-lobby")) {
+    lobbyProxy.upgrade(req, socket, head);
   } else {
     socket.destroy();
   }
 });
 
 server.listen(PORT, function() {
-  console.log("Server running on http://localhost:" + PORT);
-  console.log("VLV API proxy:    /vlv/*      → " + VLV_API);
-  console.log("Signaling proxy:  /ws-signal  → " + VLV_SIGNAL + "/ws");
-  console.log("Lobby proxy:      /ws-lobby   → " + VLV_LOBBY + "/lobby");
+  console.log("Server on http://localhost:" + PORT);
+  console.log("REST proxy:      /vlv/*      → " + VLV_API);
+  console.log("Signaling proxy: /ws-signal  → " + VLV_SIGNAL + "/ws");
+  console.log("Lobby proxy:     /ws-lobby   → " + VLV_LOBBY + "/lobby");
 });
